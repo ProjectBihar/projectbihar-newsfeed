@@ -11,7 +11,9 @@ export interface Article {
   synopsis: string;
   source: string;
   language: string;
-  category: string;
+  category: string | null;
+  is_noise: boolean;
+  user_rating: string | null;
   published_timestamp: number;
   ingested_at: number;
 }
@@ -36,13 +38,12 @@ function getCategoryMeta(slug: string) {
 interface Props {
   article: Article;
   prediction?: { sentiment: string; confidence: number };
-  currentSentiment?: string;
-  onRated?: (sentiment: string | null) => void;
+  onRated?: (rating: string | null) => void;
   onCategoryCorrected?: (articleId: string, newCategory: string) => void;
 }
 
-function NewsCard({ article, prediction, currentSentiment, onRated, onCategoryCorrected }: Props) {
-  const cat = getCategoryMeta(article.category);
+function NewsCard({ article, prediction, onRated, onCategoryCorrected }: Props) {
+  const cat = article.category ? getCategoryMeta(article.category) : null;
 
   const predictionColor = prediction?.sentiment === 'positive' ? '#34C759'
     : prediction?.sentiment === 'negative' ? '#FF3B30'
@@ -62,21 +63,30 @@ function NewsCard({ article, prediction, currentSentiment, onRated, onCategoryCo
 
       {/* Category badge + correction button */}
       <div className="flex items-center gap-2 mb-3">
-        <span
-          className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider"
-          style={{
-            backgroundColor: `${cat.color}0A`,
-            color: `${cat.color}bb`,
-            border: `1px solid ${cat.color}15`,
-          }}
-        >
-          {article.category}
-        </span>
-        <CategoryCorrection
-          articleId={article.id}
-          currentCategory={article.category}
-          onCorrected={(newCat) => onCategoryCorrected?.(article.id, newCat)}
-        />
+        {cat && (
+          <span
+            className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider"
+            style={{
+              backgroundColor: `${cat.color}0A`,
+              color: `${cat.color}bb`,
+              border: `1px solid ${cat.color}15`,
+            }}
+          >
+            {article.category}
+          </span>
+        )}
+        {article.is_noise && (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium" style={{ backgroundColor: 'rgba(255,59,48,0.08)', color: 'rgba(255,59,48,0.7)', border: '1px solid rgba(255,59,48,0.12)' }}>
+            noise
+          </span>
+        )}
+        {!article.is_noise && article.category && (
+          <CategoryCorrection
+            articleId={article.id}
+            currentCategory={article.category}
+            onCorrected={(newCat) => onCategoryCorrected?.(article.id, newCat)}
+          />
+        )}
       </div>
 
       {/* Headline */}
@@ -102,7 +112,7 @@ function NewsCard({ article, prediction, currentSentiment, onRated, onCategoryCo
         <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
           <SentimentButtons
             articleId={article.id}
-            currentSentiment={currentSentiment}
+            currentRating={article.user_rating}
             onRated={onRated}
           />
           <a

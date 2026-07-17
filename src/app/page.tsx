@@ -14,6 +14,8 @@ interface Prediction {
   confidence: number;
 }
 
+type FeedTab = 'curated' | 'all';
+
 const DESKTOP_PER_PAGE = 70;
 const MOBILE_PER_PAGE = 50;
 
@@ -89,6 +91,37 @@ function Pagination({ page, totalPages, onPageChange }: { page: number; totalPag
   );
 }
 
+function FeedTabSwitcher({ active, onChange, curatedCount, allCount }: { active: FeedTab; onChange: (tab: FeedTab) => void; curatedCount: number; allCount: number }) {
+  return (
+    <div className="flex items-center gap-2 mb-4">
+      <button
+        onClick={() => onChange('curated')}
+        className={`px-4 py-2 rounded-lg text-[13px] font-medium transition-all ${
+          active === 'curated'
+            ? 'bg-[var(--accent)] text-white shadow-sm'
+            : 'glass-pill hover:opacity-80'
+        }`}
+        style={active !== 'curated' ? { color: 'var(--ink-secondary)' } : undefined}
+      >
+        Curated
+        <span className="ml-1.5 text-[11px] opacity-70">({curatedCount})</span>
+      </button>
+      <button
+        onClick={() => onChange('all')}
+        className={`px-4 py-2 rounded-lg text-[13px] font-medium transition-all ${
+          active === 'all'
+            ? 'bg-[var(--accent)] text-white shadow-sm'
+            : 'glass-pill hover:opacity-80'
+        }`}
+        style={active !== 'all' ? { color: 'var(--ink-secondary)' } : undefined}
+      >
+        All News
+        <span className="ml-1.5 text-[11px] opacity-70">({allCount})</span>
+      </button>
+    </div>
+  );
+}
+
 export default function Home() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,7 +129,7 @@ export default function Home() {
   const [language, setLanguage] = useState<'all' | 'en' | 'hi'>('all');
   const [blockedPhrases, setBlockedPhrases] = useState<string[]>([]);
   const [predictions, setPredictions] = useState<Record<string, Prediction>>({});
-  const [ratings, setRatings] = useState<Record<string, string>>({});
+  const [feedTab, setFeedTab] = useState<FeedTab>('curated');
   const [page, setPage] = useState(1);
   const [isMobile, setIsMobile] = useState(false);
   const predictionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -109,40 +142,36 @@ export default function Home() {
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  // Parallelize all initial fetches
+  // Fetch articles based on active tab
+  const fetchArticles = useCallback(async (tab: FeedTab) => {
+    setLoading(true);
+    try {
+      const [articlesRes, blockedRes] = await Promise.all([
+        fetch(`/api/articles?tab=${tab}`),
+        fetch('/api/block'),
+      ]);
+      const [articlesData, blockedData] = await Promise.all([
+        articlesRes.json(),
+        blockedRes.json(),
+      ]);
+      setArticles(articlesData.articles || []);
+      setBlockedPhrases((blockedData.phrases || []).map((p: { phrase: string }) => p.phrase));
+    } catch (err) {
+      console.error('Failed to initialize:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Initial fetch
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      try {
-        const [articlesRes, blockedRes, ratingsRes] = await Promise.all([
-          fetch('/api/articles'),
-          fetch('/api/block'),
-          fetch('/api/sentiment'),
-        ]);
-        if (cancelled) return;
+    fetchArticles(feedTab);
+  }, [feedTab, fetchArticles]);
 
-        const [articlesData, blockedData, ratingsData] = await Promise.all([
-          articlesRes.json(),
-          blockedRes.json(),
-          ratingsRes.json(),
-        ]);
-        if (cancelled) return;
-
-        setArticles(articlesData.articles || []);
-        setBlockedPhrases((blockedData.phrases || []).map((p: { phrase: string }) => p.phrase));
-        const ratingsMap: Record<string, string> = {};
-        for (const r of ratingsData.ratings || []) {
-          ratingsMap[r.article_id] = r.sentiment;
-        }
-        setRatings(ratingsMap);
-      } catch (err) {
-        console.error('Failed to initialize:', err);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
+  // Re-fetch when tab changes
+  const handleTabChange = useCallback((tab: FeedTab) => {
+    setFeedTab(tab);
+    setPage(1);
   }, []);
 
   // Debounced predictions fetch
@@ -170,15 +199,21 @@ export default function Home() {
 
   const filtered = useMemo(() => {
     return articles.filter((a) => {
+      // In curated tab, hide noise articles
+      if (feedTab === 'curated' && a.is_noise) return false;
       if (activeCategory !== 'all' && a.category !== activeCategory) return false;
       if (language !== 'all' && a.language !== language) return false;
       if (isBlockedArticle(a.headline, a.synopsis, blockedPhrases)) return false;
       return true;
     });
-  }, [articles, activeCategory, language, blockedPhrases]);
+  }, [articles, activeCategory, language, blockedPhrases, feedTab]);
+
+  // Count totals for tab display
+  const curatedCount = useMemo(() => articles.filter((a) => !a.is_noise).length, [articles]);
+  const allCount = articles.length;
 
   // Reset page when filters change
-  useEffect(() => { setPage(1); }, [activeCategory, language, blockedPhrases]);
+  useEffect(() => { setPage(1); }, [activeCategory, language, blockedPhrases, feedTab]);
 
   const perPage = isMobile ? MOBILE_PER_PAGE : DESKTOP_PER_PAGE;
   const totalPages = Math.ceil(filtered.length / perPage);
@@ -187,16 +222,10 @@ export default function Home() {
     return filtered.slice(start, start + perPage);
   }, [filtered, page, perPage]);
 
-  const handleRated = useCallback((articleId: string, sentiment: string | null) => {
-    setRatings((prev) => {
-      const next = { ...prev };
-      if (sentiment === null) {
-        delete next[articleId];
-      } else {
-        next[articleId] = sentiment;
-      }
-      return next;
-    });
+  const handleRated = useCallback((articleId: string, rating: string | null) => {
+    setArticles((prev) =>
+      prev.map((a) => (a.id === articleId ? { ...a, user_rating: rating } : a))
+    );
   }, []);
 
   const handleCategoryCorrected = useCallback((articleId: string, newCategory: string) => {
@@ -214,21 +243,8 @@ export default function Home() {
   }, []);
 
   const handleRefresh = useCallback(() => {
-    setLoading(true);
-    Promise.all([
-      fetch('/api/articles').then((r) => r.json()),
-      fetch('/api/sentiment').then((r) => r.json()),
-      fetch('/api/block').then((r) => r.json()),
-    ]).then(([articlesData, ratingsData, blockedData]) => {
-      setArticles(articlesData.articles || []);
-      setBlockedPhrases((blockedData.phrases || []).map((p: { phrase: string }) => p.phrase));
-      const ratingsMap: Record<string, string> = {};
-      for (const r of ratingsData.ratings || []) {
-        ratingsMap[r.article_id] = r.sentiment;
-      }
-      setRatings(ratingsMap);
-    }).finally(() => setLoading(false));
-  }, []);
+    fetchArticles(feedTab);
+  }, [feedTab, fetchArticles]);
 
   const scrollToTop = useCallback(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -250,6 +266,13 @@ export default function Home() {
             onUnblocked={handleUnblocked}
           />
         </div>
+
+        <FeedTabSwitcher
+          active={feedTab}
+          onChange={handleTabChange}
+          curatedCount={curatedCount}
+          allCount={allCount}
+        />
 
         <CategoryTabs
           active={activeCategory}
@@ -278,8 +301,7 @@ export default function Home() {
                   <NewsCard
                     article={article}
                     prediction={predictions[article.id]}
-                    currentSentiment={ratings[article.id]}
-                    onRated={(sentiment) => handleRated(article.id, sentiment)}
+                    onRated={(rating) => handleRated(article.id, rating)}
                     onCategoryCorrected={handleCategoryCorrected}
                   />
                 </div>

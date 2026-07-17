@@ -4,44 +4,28 @@ import { useState, useCallback } from 'react';
 
 interface Props {
   articleId: string;
-  currentSentiment?: string;
-  onRated?: (sentiment: string | null) => void;
+  currentRating?: string | null;
+  onRated?: (rating: string | null) => void;
 }
 
-export default function SentimentButtons({ articleId, currentSentiment, onRated }: Props) {
-  const [selected, setSelected] = useState<string | null>(currentSentiment || null);
+export default function SentimentButtons({ articleId, currentRating, onRated }: Props) {
+  const [selected, setSelected] = useState<string | null>(currentRating || null);
   const [loading, setLoading] = useState(false);
 
-  const handleRate = useCallback(async (sentiment: string) => {
+  const handleRate = useCallback(async (rating: string) => {
     if (loading) return;
 
     // Toggle: tap same button again → undo
-    if (selected === sentiment) {
-      setSelected(null);
-      onRated?.(null);
-      setLoading(true);
-      try {
-        await fetch('/api/sentiment', {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ article_id: articleId }),
-        });
-      } catch (err) {
-        console.error('Failed to undo rating:', err);
-      }
-      setLoading(false);
-      return;
-    }
+    const newRating = selected === rating ? null : rating;
+    setSelected(newRating);
+    onRated?.(newRating);
 
-    // Normal: set new sentiment
-    setSelected(sentiment);
-    onRated?.(sentiment);
     setLoading(true);
     try {
-      await fetch('/api/sentiment', {
+      await fetch('/api/articles/rate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ article_id: articleId, sentiment }),
+        body: JSON.stringify({ article_id: articleId, rating: newRating }),
       });
     } catch (err) {
       console.error('Failed to rate:', err);
@@ -51,7 +35,7 @@ export default function SentimentButtons({ articleId, currentSentiment, onRated 
 
   return (
     <div className="flex items-center gap-0.5 sm:gap-1">
-      {/* Positive (Thumbs Up) */}
+      {/* Positive */}
       <button
         onClick={() => handleRate('positive')}
         disabled={loading}
@@ -68,7 +52,7 @@ export default function SentimentButtons({ articleId, currentSentiment, onRated 
         </svg>
       </button>
 
-      {/* Negative (Thumbs Down) */}
+      {/* Negative */}
       <button
         onClick={() => handleRate('negative')}
         disabled={loading}
@@ -85,7 +69,7 @@ export default function SentimentButtons({ articleId, currentSentiment, onRated 
         </svg>
       </button>
 
-      {/* Neutral (Minus) */}
+      {/* Neutral */}
       <button
         onClick={() => handleRate('neutral')}
         disabled={loading}
