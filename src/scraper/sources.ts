@@ -58,14 +58,6 @@ export const ENGLISH_SOURCES: SourceConfig[] = [
     selectors: { articleLink: 'a[href*="/article/"]' },
   },
   {
-    name: 'Indian Express',
-    language: 'en',
-    type: 'bihar-dedicated',
-    listingUrl: 'https://indianexpress.com/about/bihar-news/',
-    allowedCategories: biharDedicatedAll,
-    selectors: { articleLink: 'a[href*="/article/"]' },
-  },
-  {
     name: 'Hindustan Times',
     language: 'en',
     type: 'bihar-dedicated',
@@ -123,22 +115,6 @@ export const ENGLISH_SOURCES: SourceConfig[] = [
     listingUrl: 'https://www.livemint.com/topic/bihar',
     allowedCategories: biharDedicatedAll,
     selectors: { articleLink: 'a[href*="/news/"]' },
-  },
-  {
-    name: 'Moneycontrol',
-    language: 'en',
-    type: 'bihar-dedicated',
-    listingUrl: 'https://www.moneycontrol.com/news/tags/bihar.html',
-    allowedCategories: biharDedicatedAll,
-    selectors: { articleLink: 'a[href*="/news/"]' },
-  },
-  {
-    name: 'Mongabay India',
-    language: 'en',
-    type: 'bihar-dedicated',
-    listingUrl: 'https://india.mongabay.com/list/bihar/',
-    allowedCategories: biharDedicatedAll,
-    selectors: { articleLink: 'a[href*="/20"]' },
   },
   {
     name: 'The Print',
