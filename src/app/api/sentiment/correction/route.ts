@@ -1,5 +1,13 @@
+import { createClient } from '@supabase/supabase-js';
 import { createServerClient } from '@/lib/supabase-server';
 import { NextRequest, NextResponse } from 'next/server';
+
+function getServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY;
+  if (!url || !key) throw new Error('Missing Supabase service key');
+  return createClient(url, key);
+}
 
 // Stop words for keyword extraction
 const STOP_WORDS_EN = new Set([
@@ -92,8 +100,9 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Update the article's category
-  await supabase
+  // Update the article's category (use service key to bypass RLS)
+  const serviceClient = getServiceClient();
+  await serviceClient
     .from('articles')
     .update({ category: corrected_category })
     .eq('id', article_id);
