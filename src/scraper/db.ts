@@ -64,7 +64,8 @@ export interface ArticleRow {
   synopsis: string;
   source: string;
   language: string;
-  category: string;
+  category: string | null;
+  is_noise: boolean;
   published_timestamp: number;
   ingested_at: number;
 }

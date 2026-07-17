@@ -171,19 +171,26 @@ async function scrapeSource(source: SourceConfig): Promise<number> {
         continue;
       }
 
-      // Actor vs. Action filter — drop pure political/crime noise
-      if (isNoiseArticle(data.headline, data.synopsis)) {
-        console.log(`  ✗ Political/crime noise: ${data.headline.slice(0, 60)}`);
-        continue;
-      }
+      // Determine noise status — store but flag
+      const isNoise = isNoiseArticle(data.headline, data.synopsis);
 
       // Classify (token-bounded keyword matching)
-      const category = classifyArticle(data.headline, data.synopsis, source);
+      const rawCategory = classifyArticle(data.headline, data.synopsis, source);
 
-      // Exclude articles that don't fit any development category
-      if (category === 'exclude') {
-        console.log(`  ✗ Non-development: ${data.headline.slice(0, 60)}`);
-        continue;
+      // Determine final category and noise flag
+      let category: string | null;
+      let isNoiseFlag: boolean;
+
+      if (isNoise || rawCategory === 'exclude') {
+        // Noise or non-development: store with is_noise = true, category = null
+        category = null;
+        isNoiseFlag = true;
+        console.log(`  ~ [noise] ${data.headline.slice(0, 70)}`);
+      } else {
+        // Normal development article
+        category = rawCategory;
+        isNoiseFlag = false;
+        console.log(`  ✓ [${category}] ${data.headline.slice(0, 70)}`);
       }
 
       const row: ArticleRow = {
@@ -194,6 +201,7 @@ async function scrapeSource(source: SourceConfig): Promise<number> {
         source: source.name,
         language: source.language,
         category,
+        is_noise: isNoiseFlag,
         published_timestamp,
         ingested_at: Date.now(),
       };
