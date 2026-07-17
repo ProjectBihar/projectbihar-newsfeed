@@ -90,12 +90,3 @@ export async function getBlockedPhrases(): Promise<string[]> {
     .select('phrase');
   return (data || []).map((r: { phrase: string }) => r.phrase);
 }
-
-/**
- * Check if a headline matches any blocked phrase (case-insensitive).
- */
-export function isBlocked(headline: string, synopsis: string, blockedPhrases: string[]): boolean {
-  if (blockedPhrases.length === 0) return false;
-  const text = `${headline} ${synopsis}`.toLowerCase();
-  return blockedPhrases.some((p) => text.includes(p.toLowerCase()));
-}

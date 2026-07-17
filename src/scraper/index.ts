@@ -5,7 +5,8 @@ import { extractArticleData } from './article-extractor';
 import { extractPublishDate } from './date-handler';
 import { generateArticleId } from './dedup';
 import { classifyArticle } from './classifier';
-import { upsertArticle, getExistingIds, getBlockedPhrases, isBlocked, type ArticleRow } from './db';
+import { upsertArticle, getExistingIds, getBlockedPhrases, type ArticleRow } from './db';
+import { isBlockedArticle } from '../lib/block-filter';
 import { SEVEN_DAYS_MS, DELAY_BETWEEN_REQUESTS_MS } from './config';
 import { matchesAnyToken } from './token-match';
 import { isNoiseArticle } from './noise-filter';
@@ -121,9 +122,9 @@ async function scrapeSource(source: SourceConfig, blockedPhrases: string[]): Pro
         continue;
       }
 
-      // Check blocked phrases (server-side)
-      if (isBlocked(data.headline, data.synopsis, blockedPhrases)) {
-        console.log(`  ✗ Blocked phrase: ${data.headline.slice(0, 60)}`);
+      // Check blocked phrases (master filter)
+      if (isBlockedArticle(data.headline, data.synopsis, blockedPhrases)) {
+        console.log(`  ✗ Blocked: ${data.headline.slice(0, 60)}`);
         continue;
       }
 

@@ -5,6 +5,7 @@ import Header from '@/components/Header';
 import NewsCard from '@/components/NewsCard';
 import CategoryTabs from '@/components/CategoryTabs';
 import BlockPhraseInput from '@/components/BlockPhraseInput';
+import { isBlockedArticle } from '@/lib/block-filter';
 import type { Article } from '@/components/NewsCard';
 import type { Category } from '@/scraper/config';
 
@@ -88,10 +89,7 @@ export default function Home() {
     return articles.filter((a) => {
       if (activeCategory !== 'all' && a.category !== activeCategory) return false;
       if (language !== 'all' && a.language !== language) return false;
-      if (blockedPhrases.length > 0) {
-        const text = `${a.headline} ${a.synopsis}`.toLowerCase();
-        if (blockedPhrases.some((p) => text.includes(p.toLowerCase()))) return false;
-      }
+      if (isBlockedArticle(a.headline, a.synopsis, blockedPhrases)) return false;
       return true;
     });
   }, [articles, activeCategory, language, blockedPhrases]);
