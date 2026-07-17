@@ -66,50 +66,15 @@ export default function Header({ totalArticles, onRefresh }: Props) {
 
   return (
     <header className="glass-header sticky top-0 z-50">
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-[105px] py-3 flex items-center justify-between gap-3">
-        {/* Left: Title */}
-        <h1 className="text-[15px] sm:text-[18px] font-bold tracking-tight truncate" style={{ color: 'var(--ink)' }}>
-          PrōjectBihar Newsfeed
-        </h1>
-
-        {/* Right: Counts + Refresh + Dark mode */}
-        <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-          {/* Total count */}
-          <div className="glass-pill flex flex-col items-center rounded-lg px-2 sm:px-3 py-1">
-            <span className="text-[13px] sm:text-[15px] font-bold leading-none" style={{ color: 'var(--ink)' }}>{totalArticles}</span>
-            <span className="text-[7px] sm:text-[8px] font-medium uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Total</span>
-          </div>
-
-          {/* Sentiment counts — hidden on very small screens */}
-          <div className="hidden sm:flex items-center gap-1.5">
-            <div className="glass-pill flex flex-col items-center rounded-lg px-2.5 py-1">
-              <span className="text-[13px] font-bold leading-none" style={{ color: '#34C759' }}>{counts.positive}</span>
-              <span className="text-[8px] font-medium uppercase tracking-wider" style={{ color: 'var(--muted)' }}>+</span>
-            </div>
-            <div className="glass-pill flex flex-col items-center rounded-lg px-2.5 py-1">
-              <span className="text-[13px] font-bold leading-none" style={{ color: '#FF3B30' }}>{counts.negative}</span>
-              <span className="text-[8px] font-medium uppercase tracking-wider" style={{ color: 'var(--muted)' }}>−</span>
-            </div>
-            <div className="glass-pill flex flex-col items-center rounded-lg px-2.5 py-1">
-              <span className="text-[13px] font-bold leading-none" style={{ color: '#8E8E93' }}>{counts.neutral}</span>
-              <span className="text-[8px] font-medium uppercase tracking-wider" style={{ color: 'var(--muted)' }}>○</span>
-            </div>
-          </div>
-
-          {/* Refresh */}
-          <button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="glass-pill px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-[12px] font-medium rounded-lg disabled:opacity-50"
-            style={{ color: 'var(--ink-secondary)' }}
-          >
-            {refreshing ? '...' : 'Refresh'}
-          </button>
-
-          {/* Dark mode toggle */}
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-[105px]">
+        {/* Row 1: Title + Dark mode */}
+        <div className="flex items-center justify-between py-2.5 sm:py-3">
+          <h1 className="text-[16px] sm:text-[18px] font-bold tracking-tight truncate" style={{ color: 'var(--ink)' }}>
+            PrōjectBihar Newsfeed
+          </h1>
           <button
             onClick={toggleTheme}
-            className="glass-pill p-1.5 rounded-lg"
+            className="glass-pill p-2 rounded-lg flex-shrink-0"
             style={{ color: 'var(--ink-secondary)' }}
           >
             {dark ? (
@@ -122,6 +87,40 @@ export default function Header({ totalArticles, onRefresh }: Props) {
               </svg>
             )}
           </button>
+        </div>
+
+        {/* Row 2: Stats + Refresh — wraps on mobile */}
+        <div className="flex items-center gap-1.5 sm:gap-2 pb-2.5 sm:pb-3 flex-wrap">
+          <div className="glass-pill flex items-center gap-1 rounded-lg px-2.5 py-1">
+            <span className="text-[14px] font-bold leading-none" style={{ color: 'var(--ink)' }}>{totalArticles}</span>
+            <span className="text-[9px] font-medium uppercase tracking-wider" style={{ color: 'var(--muted)' }}>total</span>
+          </div>
+
+          <div className="glass-pill flex items-center gap-1 rounded-lg px-2 py-1">
+            <span className="text-[12px] font-bold leading-none" style={{ color: '#34C759' }}>{counts.positive}</span>
+            <span className="text-[9px] font-medium" style={{ color: 'var(--muted)' }}>+</span>
+          </div>
+
+          <div className="glass-pill flex items-center gap-1 rounded-lg px-2 py-1">
+            <span className="text-[12px] font-bold leading-none" style={{ color: '#FF3B30' }}>{counts.negative}</span>
+            <span className="text-[9px] font-medium" style={{ color: 'var(--muted)' }}>−</span>
+          </div>
+
+          <div className="glass-pill flex items-center gap-1 rounded-lg px-2 py-1">
+            <span className="text-[12px] font-bold leading-none" style={{ color: '#8E8E93' }}>{counts.neutral}</span>
+            <span className="text-[9px] font-medium" style={{ color: 'var(--muted)' }}>○</span>
+          </div>
+
+          <div className="ml-auto">
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="glass-pill px-3 py-1.5 text-[12px] font-medium rounded-lg disabled:opacity-50"
+              style={{ color: 'var(--ink-secondary)' }}
+            >
+              {refreshing ? '...' : 'Refresh'}
+            </button>
+          </div>
         </div>
       </div>
     </header>

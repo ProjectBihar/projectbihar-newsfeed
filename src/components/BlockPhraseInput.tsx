@@ -65,7 +65,7 @@ export default function BlockPhraseInput({ onBlocked, onUnblocked }: Props) {
   return (
     <div className="w-full">
       {/* Input */}
-      <div className="glass-input flex items-center overflow-hidden">
+      <div className="glass-input flex items-center overflow-hidden w-full">
         <input
           type="text"
           value={phrase}

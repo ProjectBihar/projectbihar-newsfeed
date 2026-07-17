@@ -51,20 +51,24 @@ function NewsCard({ article, prediction, currentSentiment, onRated, onCategoryCo
   const showBorder = prediction && prediction.sentiment !== 'neutral' && prediction.confidence > 0;
 
   return (
-    <article className="glass-card p-3 sm:p-3.5 flex flex-col relative gpu-accel">
+    <article className="glass-card p-4 sm:p-5 flex flex-col relative gpu-accel">
       {/* Predicted sentiment dot on left border */}
       {showBorder && (
         <div
-          className="absolute left-0 top-0 bottom-0 w-[3px]"
+          className="absolute left-0 top-3 bottom-3 w-[3px] rounded-full"
           style={{ backgroundColor: predictionColor, opacity: prediction.confidence }}
         />
       )}
 
       {/* Category badge + correction button */}
-      <div className="flex items-center gap-1.5 mb-2">
+      <div className="flex items-center gap-2 mb-3">
         <span
-          className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium uppercase tracking-wide"
-          style={{ backgroundColor: `${cat.color}10`, color: `${cat.color}cc` }}
+          className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider"
+          style={{
+            backgroundColor: `${cat.color}0A`,
+            color: `${cat.color}bb`,
+            border: `1px solid ${cat.color}15`,
+          }}
         >
           {article.category}
         </span>
@@ -80,19 +84,22 @@ function NewsCard({ article, prediction, currentSentiment, onRated, onCategoryCo
         href={article.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="block mb-2.5 flex-1"
+        className="block mb-3 flex-1 group"
       >
-        <h3 className="text-[14px] font-medium leading-snug transition-colors hover:text-[var(--accent)]" style={{ color: 'var(--ink)' }}>
+        <h3
+          className="text-[14.5px] sm:text-[15px] font-semibold leading-[1.45] transition-colors group-hover:text-[var(--accent)]"
+          style={{ color: 'var(--ink)' }}
+        >
           {article.headline}
         </h3>
       </a>
 
-      {/* Bottom row: source + time + sentiment buttons */}
-      <div className="flex items-center justify-between mt-auto pt-2" style={{ borderTop: '1px solid var(--border)' }}>
-        <span className="text-[11px]" style={{ color: 'var(--muted)' }}>
-          {article.source} / {timeAgo(article.published_timestamp)}
+      {/* Bottom row — separated by spacing, no divider line */}
+      <div className="flex items-center justify-between mt-auto pt-3">
+        <span className="text-[11px] sm:text-[12px] leading-tight" style={{ color: 'var(--muted)' }}>
+          {article.source} · {timeAgo(article.published_timestamp)}
         </span>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <SentimentButtons
             articleId={article.id}
             currentSentiment={currentSentiment}
@@ -102,7 +109,7 @@ function NewsCard({ article, prediction, currentSentiment, onRated, onCategoryCo
             href={article.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[11px] font-medium hover:underline"
+            className="text-[11px] sm:text-[12px] font-medium hover:underline hidden sm:inline"
             style={{ color: 'var(--accent)' }}
           >
             Source

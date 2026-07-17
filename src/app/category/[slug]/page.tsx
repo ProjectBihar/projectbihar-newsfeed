@@ -160,8 +160,8 @@ export default function CategoryPage() {
     <div>
       <Header totalArticles={filtered.length} onRefresh={handleRefresh} />
 
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-[105px] py-4">
-        <div className="mb-4">
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-[105px] py-3 sm:py-4">
+        <div className="mb-3 sm:mb-4">
           <BlockPhraseInput
             onBlocked={handleBlocked}
             onUnblocked={handleUnblocked}
@@ -175,7 +175,7 @@ export default function CategoryPage() {
         />
 
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mt-2">
             {Array.from({ length: 6 }).map((_, i) => (
               <SkeletonCard key={i} />
             ))}
@@ -186,7 +186,7 @@ export default function CategoryPage() {
             <p className="text-sm">Check back after the next scrape cycle.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mt-2">
             {filtered.map((article) => (
               <div key={article.id} className="animate-fade-in">
                 <NewsCard

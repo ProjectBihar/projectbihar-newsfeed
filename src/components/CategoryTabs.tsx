@@ -24,44 +24,47 @@ const CATEGORIES: { slug: Category | 'all'; label: string }[] = [
 
 function CategoryTabs({ active = 'all', language = 'all', onLanguageChange }: CategoryTabsProps) {
   return (
-    <div className="flex items-center gap-2 sm:gap-3 py-2 overflow-x-auto scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
-      {/* Category tabs */}
-      {CATEGORIES.map((cat) => {
-        const isActive = active === cat.slug;
-        return (
-          <Link
-            key={cat.slug}
-            href={cat.slug === 'all' ? '/' : `/category/${cat.slug}`}
-            className={`text-[13px] font-medium transition-all gpu-accel ${
-              isActive
-                ? 'bg-[var(--accent)] text-white px-3 py-1 rounded-full'
-                : 'px-2 py-0.5 rounded-full hover:opacity-80'
+    <div className="relative mb-4">
+      {/* Horizontal scrollable container */}
+      <div className="flex items-center gap-2 py-2 overflow-x-auto scrollbar-hide whitespace-nowrap -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap">
+        {/* Category tabs */}
+        {CATEGORIES.map((cat) => {
+          const isActive = active === cat.slug;
+          return (
+            <Link
+              key={cat.slug}
+              href={cat.slug === 'all' ? '/' : `/category/${cat.slug}`}
+              className={`inline-flex items-center text-[13px] font-medium transition-all gpu-accel flex-shrink-0 ${
+                isActive
+                  ? 'bg-[var(--accent)] text-white px-3.5 py-1.5 rounded-full shadow-sm'
+                  : 'px-3 py-1.5 rounded-full hover:bg-[var(--border)]'
+              }`}
+              style={!isActive ? { color: 'var(--ink-secondary)' } : undefined}
+            >
+              {cat.label}
+            </Link>
+          );
+        })}
+
+        {/* Separator */}
+        <div className="w-px h-4 mx-1 flex-shrink-0" style={{ backgroundColor: 'var(--border)' }} />
+
+        {/* Language filter */}
+        {(['all', 'en', 'hi'] as const).map((lang) => (
+          <button
+            key={lang}
+            onClick={() => onLanguageChange?.(lang)}
+            className={`inline-flex items-center text-[13px] font-medium transition-all gpu-accel flex-shrink-0 ${
+              language === lang
+                ? 'bg-[var(--accent)] text-white px-3.5 py-1.5 rounded-full shadow-sm'
+                : 'px-3 py-1.5 rounded-full hover:bg-[var(--border)]'
             }`}
-            style={!isActive ? { color: 'var(--ink-secondary)' } : undefined}
+            style={language !== lang ? { color: 'var(--ink-secondary)' } : undefined}
           >
-            {cat.label}
-          </Link>
-        );
-      })}
-
-      {/* Separator */}
-      <div className="w-px h-4 mx-1" style={{ backgroundColor: 'var(--border)' }} />
-
-      {/* Language filter */}
-      {(['all', 'en', 'hi'] as const).map((lang) => (
-        <button
-          key={lang}
-          onClick={() => onLanguageChange?.(lang)}
-          className={`text-[13px] font-medium transition-all gpu-accel ${
-            language === lang
-              ? 'bg-[var(--accent)] text-white px-3 py-1 rounded-full'
-              : 'px-2 py-0.5 rounded-full hover:opacity-80'
-          }`}
-          style={language !== lang ? { color: 'var(--ink-secondary)' } : undefined}
-        >
-          {lang === 'all' ? 'All' : lang === 'en' ? 'EN' : 'HI'}
-        </button>
-      ))}
+            {lang === 'all' ? 'All' : lang === 'en' ? 'EN' : 'HI'}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
