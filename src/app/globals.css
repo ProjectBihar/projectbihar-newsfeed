@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Mukta:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
 /* ═══ Custom Font: P22 Mackinac ═══ */
@@ -57,7 +58,7 @@
 }
 
 body {
-  font-family: 'P22 Mackinac', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-family: 'P22 Mackinac', 'Mukta', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   background-color: var(--bg);
   color: var(--ink);
   transition: background-color 0.15s ease, color 0.15s ease;
@@ -84,9 +85,15 @@ html {
   font-weight: inherit;
 }
 
-/* Hindi text override: force normal weight */
+/* Hindi/Devanagari text: use Mukta with normal weight */
 :lang(hi) {
+  font-family: 'Mukta', sans-serif;
   font-weight: 400 !important;
+}
+
+/* Devanagari Unicode range: auto-select Mukta */
+[lang] {
+  font-variant-ligatures: common-ligatures;
 }
 
 .gpu-accel {
