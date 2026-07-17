@@ -23,6 +23,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   education: 'Education',
   healthcare: 'Healthcare',
   environment: 'Environment',
+  governance: 'Governance',
 };
 
 export default function CategoryPage() {

@@ -8,6 +8,7 @@ export const CATEGORIES: { slug: Category; label: string; color: string }[] = [
   { slug: 'education', label: 'Education', color: '#ea580c' },
   { slug: 'healthcare', label: 'Healthcare', color: '#0891b2' },
   { slug: 'environment', label: 'Environment', color: '#65a30d' },
+  { slug: 'governance', label: 'Governance', color: '#8b5cf6' },
 ];
 
 export const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;

@@ -6,6 +6,7 @@ export type Category =
   | 'education'
   | 'healthcare'
   | 'environment'
+  | 'governance'
   | 'exclude';
 
 export const ALL_CATEGORIES: Category[] = [
@@ -16,6 +17,7 @@ export const ALL_CATEGORIES: Category[] = [
   'education',
   'healthcare',
   'environment',
+  'governance',
 ];
 
 export const CATEGORY_DISPLAY: Record<Category, string> = {
@@ -26,6 +28,7 @@ export const CATEGORY_DISPLAY: Record<Category, string> = {
   education: 'Education',
   healthcare: 'Healthcare',
   environment: 'Environment',
+  governance: 'Governance',
   exclude: 'Exclude',
 };
 

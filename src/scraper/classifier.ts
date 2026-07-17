@@ -84,6 +84,16 @@ const CATEGORY_KEYWORDS: Record<Category, string[]> = {
     'बाढ़', 'सूखा', 'जल-जीवन-हरियाली', 'प्रदूषण',
     'वन', 'नदी', 'सौर', 'जलवायु',
   ],
+  governance: [
+    'governance', 'administration', 'policy', 'reform', 'transparency',
+    'accountability', 'public service', 'civil service', 'bureaucracy',
+    'IAS', 'IPS', 'department', 'ministry', 'secretariat', 'RTI',
+    'gram sabha', 'e-governance', 'digital india', 'public participation',
+    'municipal', 'panchayat', 'block', 'district administration',
+    'government scheme', 'welfare scheme', 'public welfare',
+    'शासन', 'प्रशासन', 'नीति', 'सुधार', 'पारदर्शिता', 'लोकसेवा',
+    'सरकारी विभाग', 'मंत्रालय', 'सचिवालय', 'ग्राम सभा',
+  ],
   exclude: [],
 };
 

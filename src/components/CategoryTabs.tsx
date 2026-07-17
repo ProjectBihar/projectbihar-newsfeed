@@ -18,6 +18,7 @@ const CATEGORIES: { slug: Category | 'all'; label: string }[] = [
   { slug: 'education', label: 'Education' },
   { slug: 'healthcare', label: 'Healthcare' },
   { slug: 'environment', label: 'Environment' },
+  { slug: 'governance', label: 'Governance' },
 ];
 
 export default function CategoryTabs({ active = 'all', language = 'all', onLanguageChange }: CategoryTabsProps) {

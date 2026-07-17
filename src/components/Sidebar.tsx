@@ -13,6 +13,9 @@ const CATEGORY_ICONS: Record<Category, string> = {
   education: '📚',
   healthcare: '🏥',
   environment: '🌿',
+  governance: '🏛️',
+  exclude: '🚫',
+};
   exclude: '🚫',
 };
 
