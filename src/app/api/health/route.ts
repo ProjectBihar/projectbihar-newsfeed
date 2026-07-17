@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const ninetyMinAgo = Date.now() - 90 * 60 * 1000;
 
   const { count } = await supabase

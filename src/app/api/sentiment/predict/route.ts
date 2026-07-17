@@ -35,7 +35,7 @@ function extractKeywords(headline: string): string[] {
 }
 
 export async function GET(req: NextRequest) {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const idsParam = req.nextUrl.searchParams.get('ids');
 
   if (!idsParam) {

@@ -1,6 +1,9 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import Link from 'next/link';
+import { createClient } from '@/lib/supabase-client';
+import type { User } from '@supabase/supabase-js';
 
 interface Props {
   totalArticles: number;
@@ -17,6 +20,8 @@ export default function Header({ totalArticles, onRefresh }: Props) {
   const [dark, setDark] = useState(false);
   const [counts, setCounts] = useState<SentimentCounts>({ positive: 0, negative: 0, neutral: 0 });
   const [refreshing, setRefreshing] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const supabase = createClient();
 
   useEffect(() => {
     const saved = localStorage.getItem('theme');
@@ -25,6 +30,17 @@ export default function Header({ totalArticles, onRefresh }: Props) {
       document.documentElement.classList.add('dark');
     }
   }, []);
+
+  // Auth state
+  useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    supabase.auth.getUser().then((res: any) => setUser(res.data.user));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
+      setUser(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, [supabase]);
 
   const fetchCounts = useCallback(async () => {
     try {
@@ -63,6 +79,8 @@ export default function Header({ totalArticles, onRefresh }: Props) {
     onRefresh();
     setTimeout(() => setRefreshing(false), 1500);
   }, [onRefresh, refreshing]);
+
+  const userInitial = user?.email?.charAt(0).toUpperCase() || null;
 
   return (
     <header className="glass-header sticky top-0 z-50">
@@ -122,36 +140,87 @@ export default function Header({ totalArticles, onRefresh }: Props) {
                   </svg>
                 )}
               </button>
+
+              {/* Auth button */}
+              {user ? (
+                <Link
+                  href="/auth/logout"
+                  className="glass-pill flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium"
+                  style={{ color: 'var(--ink-secondary)' }}
+                  title={user.email || 'Account'}
+                >
+                  <span
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
+                    style={{ backgroundColor: 'var(--accent)' }}
+                  >
+                    {userInitial}
+                  </span>
+                  <span className="hidden lg:inline">Logout</span>
+                </Link>
+              ) : (
+                <Link
+                  href="/auth/login"
+                  className="glass-pill px-3 py-1.5 rounded-lg text-[12px] font-medium"
+                  style={{ color: 'var(--accent)' }}
+                >
+                  Sign In
+                </Link>
+              )}
             </div>
           </div>
         </div>
 
         {/* Mobile (< sm): two-row stacked layout */}
         <div className="flex sm:hidden flex-col py-2.5 gap-2">
-          {/* Row 1: Title + Dark mode */}
+          {/* Row 1: Title + Dark mode + Auth */}
           <div className="flex items-center justify-between">
             <h1 className="text-[16px] font-bold tracking-tight truncate" style={{ color: 'var(--ink)', fontWeight: 700 }}>
               PrōjectBihar Newsfeed
             </h1>
-            <button
-              onClick={toggleTheme}
-              className="glass-pill p-1.5 rounded-lg flex-shrink-0"
-              style={{ color: 'var(--ink-secondary)' }}
-              aria-label="Toggle dark mode"
-            >
-              {dark ? (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
+            <div className="flex items-center gap-1.5">
+              {user ? (
+                <Link
+                  href="/auth/logout"
+                  className="glass-pill flex items-center gap-1 px-2 py-1 rounded-lg text-[11px]"
+                  style={{ color: 'var(--ink-secondary)' }}
+                  title={user.email || 'Account'}
+                >
+                  <span
+                    className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-white"
+                    style={{ backgroundColor: 'var(--accent)' }}
+                  >
+                    {userInitial}
+                  </span>
+                </Link>
               ) : (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                </svg>
+                <Link
+                  href="/auth/login"
+                  className="glass-pill px-2 py-1 rounded-lg text-[11px] font-medium"
+                  style={{ color: 'var(--accent)' }}
+                >
+                  Sign In
+                </Link>
               )}
-            </button>
+              <button
+                onClick={toggleTheme}
+                className="glass-pill p-1.5 rounded-lg flex-shrink-0"
+                style={{ color: 'var(--ink-secondary)' }}
+                aria-label="Toggle dark mode"
+              >
+                {dark ? (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                  </svg>
+                )}
+              </button>
+            </div>
           </div>
 
-          {/* Row 2: Stats + Refresh — wrapping */}
+          {/* Row 2: Stats + Refresh */}
           <div className="flex items-center gap-1.5 flex-wrap">
             <div className="glass-pill flex items-center gap-1 rounded-lg px-2 py-0.5">
               <span className="text-[12px] font-bold leading-none" style={{ color: 'var(--ink)' }}>{totalArticles}</span>

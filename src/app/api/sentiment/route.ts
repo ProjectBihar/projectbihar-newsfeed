@@ -1,5 +1,6 @@
 import { createServerClient } from '@/lib/supabase-server';
 import { NextRequest, NextResponse } from 'next/server';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 // English stop words
 const STOP_WORDS_EN = new Set([
@@ -38,7 +39,7 @@ function extractKeywords(headline: string): string[] {
   });
 }
 
-async function rebuildProfile(supabase: ReturnType<typeof createServerClient>) {
+async function rebuildProfile(supabase: SupabaseClient) {
   // Fetch all rated articles
   const { data: ratings } = await supabase
     .from('user_sentiment')
@@ -82,10 +83,18 @@ async function rebuildProfile(supabase: ReturnType<typeof createServerClient>) {
 }
 
 export async function GET() {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // Unauthenticated: return empty (no per-user data to show)
+  if (!user) {
+    return NextResponse.json({ ratings: [] });
+  }
+
   const { data, error } = await supabase
     .from('user_sentiment')
     .select('id, article_id, sentiment, rated_at, articles(headline)')
+    .eq('user_id', user.id)
     .order('rated_at', { ascending: false });
 
   if (error) {
@@ -96,7 +105,13 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  }
+
   const { article_id, sentiment } = await req.json();
 
   if (!article_id || !['positive', 'negative', 'neutral'].includes(sentiment)) {
@@ -105,7 +120,7 @@ export async function POST(req: NextRequest) {
 
   const { error } = await supabase
     .from('user_sentiment')
-    .upsert({ article_id, sentiment }, { onConflict: 'article_id' });
+    .upsert({ article_id, sentiment, user_id: user.id }, { onConflict: 'article_id,user_id' });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -118,7 +133,13 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  }
+
   const { article_id } = await req.json();
 
   if (!article_id) {
@@ -128,7 +149,8 @@ export async function DELETE(req: NextRequest) {
   const { error } = await supabase
     .from('user_sentiment')
     .delete()
-    .eq('article_id', article_id);
+    .eq('article_id', article_id)
+    .eq('user_id', user.id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

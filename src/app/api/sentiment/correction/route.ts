@@ -42,7 +42,7 @@ function extractKeywords(headline: string): string[] {
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const { article_id, corrected_category } = await req.json();
 
   if (!article_id || !corrected_category) {
@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET() {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
 
   const { data: corrections, error } = await supabase
     .from('category_corrections')
