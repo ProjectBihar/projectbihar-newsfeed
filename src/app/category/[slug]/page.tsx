@@ -26,20 +26,6 @@ const CATEGORY_LABELS: Record<string, string> = {
   governance: 'Governance',
 };
 
-function SkeletonCard() {
-  return (
-    <div className="glass-card p-3.5 flex flex-col gap-2.5">
-      <div className="skeleton h-3 w-16 rounded" />
-      <div className="skeleton h-4 w-full rounded" />
-      <div className="skeleton h-4 w-3/4 rounded" />
-      <div className="flex justify-between mt-auto pt-2">
-        <div className="skeleton h-3 w-24 rounded" />
-        <div className="skeleton h-3 w-16 rounded" />
-      </div>
-    </div>
-  );
-}
-
 export default function CategoryPage() {
   const params = useParams();
   const slug = params.slug as string;
@@ -183,12 +169,8 @@ export default function CategoryPage() {
         />
 
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mt-2 items-stretch">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-full">
-                <SkeletonCard />
-              </div>
-            ))}
+          <div className="flex items-center justify-center py-20">
+            <div className="spinner" />
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-20 text-gray-400">
