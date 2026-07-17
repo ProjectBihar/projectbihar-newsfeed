@@ -31,12 +31,12 @@ export default function SentimentButtons({ articleId, currentSentiment, onRated 
   }, [articleId, loading, onRated]);
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-0.5 sm:gap-1">
       {/* Positive (Thumbs Up) */}
       <button
         onClick={() => handleRate('positive')}
         disabled={loading}
-        className="p-1 rounded transition-all hover:scale-110 gpu-accel"
+        className="p-1.5 sm:p-1 rounded transition-all hover:scale-110 gpu-accel min-w-[36px] min-h-[36px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
         style={{
           color: selected === 'positive' ? '#34C759' : 'var(--muted)',
           opacity: selected === 'positive' ? 1 : 0.5,
@@ -53,7 +53,7 @@ export default function SentimentButtons({ articleId, currentSentiment, onRated 
       <button
         onClick={() => handleRate('negative')}
         disabled={loading}
-        className="p-1 rounded transition-all hover:scale-110 gpu-accel"
+        className="p-1.5 sm:p-1 rounded transition-all hover:scale-110 gpu-accel min-w-[36px] min-h-[36px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
         style={{
           color: selected === 'negative' ? '#FF3B30' : 'var(--muted)',
           opacity: selected === 'negative' ? 1 : 0.5,
@@ -70,7 +70,7 @@ export default function SentimentButtons({ articleId, currentSentiment, onRated 
       <button
         onClick={() => handleRate('neutral')}
         disabled={loading}
-        className="p-1 rounded transition-all hover:scale-110 gpu-accel"
+        className="p-1.5 sm:p-1 rounded transition-all hover:scale-110 gpu-accel min-w-[36px] min-h-[36px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
         style={{
           color: selected === 'neutral' ? '#8E8E93' : 'var(--muted)',
           opacity: selected === 'neutral' ? 1 : 0.5,

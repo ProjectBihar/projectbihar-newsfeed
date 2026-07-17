@@ -160,7 +160,7 @@ export default function CategoryPage() {
     <div>
       <Header totalArticles={filtered.length} onRefresh={handleRefresh} />
 
-      <div className="max-w-[1200px] mx-auto px-[105px] py-4">
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-[105px] py-4">
         <div className="mb-4">
           <BlockPhraseInput
             onBlocked={handleBlocked}

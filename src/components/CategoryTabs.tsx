@@ -24,7 +24,7 @@ const CATEGORIES: { slug: Category | 'all'; label: string }[] = [
 
 function CategoryTabs({ active = 'all', language = 'all', onLanguageChange }: CategoryTabsProps) {
   return (
-    <div className="flex items-center gap-3 py-2 flex-wrap">
+    <div className="flex items-center gap-2 sm:gap-3 py-2 overflow-x-auto scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
       {/* Category tabs */}
       {CATEGORIES.map((cat) => {
         const isActive = active === cat.slug;

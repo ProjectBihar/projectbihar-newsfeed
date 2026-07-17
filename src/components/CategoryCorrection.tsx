@@ -69,7 +69,7 @@ function CategoryCorrection({ articleId, currentCategory, onCorrected }: Props) 
       {/* Edit button */}
       <button
         onClick={toggleDropdown}
-        className="p-1 rounded transition-all hover:scale-110 gpu-accel"
+        className="p-1.5 sm:p-1 rounded transition-all hover:scale-110 gpu-accel min-w-[32px] min-h-[32px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
         style={{ color: 'var(--muted)', opacity: 0.5 }}
         title="Correct category"
       >

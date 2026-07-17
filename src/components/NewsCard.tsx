@@ -51,7 +51,7 @@ function NewsCard({ article, prediction, currentSentiment, onRated, onCategoryCo
   const showBorder = prediction && prediction.sentiment !== 'neutral' && prediction.confidence > 0;
 
   return (
-    <article className="glass-card p-3.5 flex flex-col relative gpu-accel">
+    <article className="glass-card p-3 sm:p-3.5 flex flex-col relative gpu-accel">
       {/* Predicted sentiment dot on left border */}
       {showBorder && (
         <div
