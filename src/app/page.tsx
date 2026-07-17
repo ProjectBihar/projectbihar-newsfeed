@@ -106,8 +106,16 @@ export default function Home() {
     });
   }, [articles, activeCategory, language, blockedPhrases]);
 
-  const handleRated = useCallback((articleId: string, sentiment: string) => {
-    setRatings((prev) => ({ ...prev, [articleId]: sentiment }));
+  const handleRated = useCallback((articleId: string, sentiment: string | null) => {
+    setRatings((prev) => {
+      const next = { ...prev };
+      if (sentiment === null) {
+        delete next[articleId];
+      } else {
+        next[articleId] = sentiment;
+      }
+      return next;
+    });
   }, []);
 
   const handleCategoryCorrected = useCallback((articleId: string, newCategory: string) => {

@@ -116,3 +116,26 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ ok: true });
 }
+
+export async function DELETE(req: NextRequest) {
+  const supabase = createServerClient();
+  const { article_id } = await req.json();
+
+  if (!article_id) {
+    return NextResponse.json({ error: 'Missing article_id' }, { status: 400 });
+  }
+
+  const { error } = await supabase
+    .from('user_sentiment')
+    .delete()
+    .eq('article_id', article_id);
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Rebuild keyword profile
+  await rebuildProfile(supabase);
+
+  return NextResponse.json({ ok: true });
+}

@@ -37,7 +37,7 @@ interface Props {
   article: Article;
   prediction?: { sentiment: string; confidence: number };
   currentSentiment?: string;
-  onRated?: (sentiment: string) => void;
+  onRated?: (sentiment: string | null) => void;
   onCategoryCorrected?: (articleId: string, newCategory: string) => void;
 }
 

@@ -5,7 +5,7 @@ import { useState, useCallback } from 'react';
 interface Props {
   articleId: string;
   currentSentiment?: string;
-  onRated?: (sentiment: string) => void;
+  onRated?: (sentiment: string | null) => void;
 }
 
 export default function SentimentButtons({ articleId, currentSentiment, onRated }: Props) {
@@ -14,7 +14,26 @@ export default function SentimentButtons({ articleId, currentSentiment, onRated 
 
   const handleRate = useCallback(async (sentiment: string) => {
     if (loading) return;
-    // Optimistic update — feel instant
+
+    // Toggle: tap same button again → undo
+    if (selected === sentiment) {
+      setSelected(null);
+      onRated?.(null);
+      setLoading(true);
+      try {
+        await fetch('/api/sentiment', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ article_id: articleId }),
+        });
+      } catch (err) {
+        console.error('Failed to undo rating:', err);
+      }
+      setLoading(false);
+      return;
+    }
+
+    // Normal: set new sentiment
     setSelected(sentiment);
     onRated?.(sentiment);
     setLoading(true);
@@ -28,7 +47,7 @@ export default function SentimentButtons({ articleId, currentSentiment, onRated 
       console.error('Failed to rate:', err);
     }
     setLoading(false);
-  }, [articleId, loading, onRated]);
+  }, [articleId, selected, loading, onRated]);
 
   return (
     <div className="flex items-center gap-0.5 sm:gap-1">
@@ -41,7 +60,7 @@ export default function SentimentButtons({ articleId, currentSentiment, onRated 
           color: selected === 'positive' ? '#34C759' : 'var(--muted)',
           opacity: selected === 'positive' ? 1 : 0.5,
         }}
-        title="Positive"
+        title={selected === 'positive' ? 'Undo positive rating' : 'Positive'}
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill={selected === 'positive' ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M7 10v12" />
@@ -58,7 +77,7 @@ export default function SentimentButtons({ articleId, currentSentiment, onRated 
           color: selected === 'negative' ? '#FF3B30' : 'var(--muted)',
           opacity: selected === 'negative' ? 1 : 0.5,
         }}
-        title="Negative"
+        title={selected === 'negative' ? 'Undo negative rating' : 'Negative'}
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill={selected === 'negative' ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M17 14V2" />
@@ -75,7 +94,7 @@ export default function SentimentButtons({ articleId, currentSentiment, onRated 
           color: selected === 'neutral' ? '#8E8E93' : 'var(--muted)',
           opacity: selected === 'neutral' ? 1 : 0.5,
         }}
-        title="Neutral"
+        title={selected === 'neutral' ? 'Undo neutral rating' : 'Neutral'}
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M5 12h14" />
