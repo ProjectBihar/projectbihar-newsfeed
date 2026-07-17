@@ -16,8 +16,6 @@ const CATEGORY_ICONS: Record<Category, string> = {
   governance: '🏛️',
   exclude: '🚫',
 };
-  exclude: '🚫',
-};
 
 export default function Sidebar() {
   const pathname = usePathname();
