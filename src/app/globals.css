@@ -1,0 +1,129 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #F5F1EB;
+  --bg-secondary: #EDE9E3;
+  --card: rgba(255, 255, 255, 0.72);
+  --card-border: rgba(255, 255, 255, 0.5);
+  --card-hover: rgba(255, 255, 255, 0.85);
+  --ink: #1A1A1A;
+  --ink-secondary: #6B7280;
+  --muted: #9CA3AF;
+  --accent: #2563EB;
+  --border: rgba(0, 0, 0, 0.08);
+  --input-bg: rgba(255, 255, 255, 0.6);
+  --header-bg: rgba(245, 241, 235, 0.8);
+  --pill-bg: rgba(255, 255, 255, 0.5);
+}
+
+.dark {
+  --bg: #1C1C1E;
+  --bg-secondary: #2C2C2E;
+  --card: rgba(44, 44, 46, 0.72);
+  --card-border: rgba(255, 255, 255, 0.08);
+  --card-hover: rgba(58, 58, 60, 0.85);
+  --ink: #F5F5F7;
+  --ink-secondary: #A1A1A6;
+  --muted: #6E6E73;
+  --accent: #0A84FF;
+  --border: rgba(255, 255, 255, 0.1);
+  --input-bg: rgba(44, 44, 46, 0.6);
+  --header-bg: rgba(28, 28, 30, 0.8);
+  --pill-bg: rgba(58, 58, 60, 0.5);
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
+  background-color: var(--bg);
+  color: var(--ink);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+dialog {
+  padding: 0;
+}
+
+dialog::backdrop {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+/* Glassmorphism card */
+.glass-card {
+  background: var(--card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+
+.glass-card:hover {
+  background: var(--card-hover);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.dark .glass-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+/* Glassmorphism input */
+.glass-input {
+  background: var(--input-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.glass-input:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.dark .glass-input:focus-within {
+  box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.15);
+}
+
+/* Glassmorphism header */
+.glass-header {
+  background: var(--header-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+}
+
+/* Glassmorphism pill */
+.glass-pill {
+  background: var(--pill-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  transition: all 0.15s ease;
+}
+
+.glass-pill:hover {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.dark .glass-pill:hover {
+  background: rgba(58, 58, 60, 0.7);
+}
