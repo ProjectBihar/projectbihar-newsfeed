@@ -7,12 +7,48 @@ import { generateArticleId } from './dedup';
 import { classifyArticle } from './classifier';
 import { upsertArticle, getExistingIds, getBlockedPhrases, type ArticleRow } from './db';
 import { SEVEN_DAYS_MS, DELAY_BETWEEN_REQUESTS_MS } from './config';
-import { matchesAnyToken } from './token-match';
+import { matchesAnyToken, matchesToken } from './token-match';
 import { isNoiseArticle } from './noise-filter';
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+// Non-Bihar states/cities — if these appear, the article is NOT about Bihar
+const NON_BIHAR_STATES = [
+  // Major states
+  'Gujarat', 'Maharashtra', 'Rajasthan', 'Madhya Pradesh', 'Uttar Pradesh',
+  'West Bengal', 'Odisha', 'Jharkhand', 'Chhattisgarh', 'Punjab', 'Haryana',
+  'Uttarakhand', 'Himachal Pradesh', 'Jammu', 'Kashmir', 'Assam',
+  'Kerala', 'Tamil Nadu', 'Karnataka', 'Andhra Pradesh', 'Telangana',
+  'Goa', 'Sikkim', 'Meghalaya', 'Manipur', 'Mizoram', 'Nagaland',
+  'Tripura', 'Arunachal Pradesh', 'Chhattisgarh',
+  // Hindi names
+  'गुजरात', 'महाराष्ट्र', 'राजस्थान', 'मध्य प्रदेश', 'उत्तर प्रदेश',
+  'पश्चिम बंगाल', 'ओडिशा', 'झारखंड', 'छत्तीसगढ़', 'पंजाब', 'हरियाणा',
+  'उत्तराखंड', 'हिमाचल प्रदेश', 'जम्मू', 'कश्मीर', 'असम',
+  'केरल', 'तमिलनाडु', 'कर्नाटक', 'आंध्र प्रदेश', 'तेलंगाना',
+  'गोवा', 'सिक्किम', 'मेघालय', 'मणिपुर', 'मिजोरम', 'नागालैंड',
+  'त्रिपुरा', 'अरुणाचल प्रदेश', 'छत्तीसगढ़',
+  // Major cities from other states
+  'Ahmedabad', 'Surat', 'Rajkot', 'Vadodara', 'Mumbai', 'Pune',
+  'Nagpur', 'Jaipur', 'Lucknow', 'Kanpur', 'Agra', 'Varanasi',
+  'Kolkata', 'Howrah', 'Bhopal', 'Indore', 'Raipur', 'Bilaspur',
+  'Chandigarh', 'Ludhiana', 'Amritsar', 'Dehradun', 'Shimla',
+  'Bengaluru', 'Chennai', 'Hyderabad', 'Visakhapatnam', 'Thiruvananthapuram',
+  'Bhubaneswar', 'Cuttack', 'Ranchi', 'Jamshedpur', 'Guwahati',
+  'Panaji', 'Gangtok', 'Shillong', 'Imphal', 'Aizawl', 'Kohima',
+  'Agartala', 'Itanagar',
+  // Hindi city names
+  'अहमदाबाद', 'सूरत', 'राजकोट', 'वडोदरा', 'मुंबई', 'पुणे',
+  'नागपुर', 'जयपुर', 'लखनऊ', 'कानपुर', 'आगरा', 'वाराणसी',
+  'कोलकाता', 'हावड़ा', 'भोपाल', 'इंदौर', 'रायपुर', 'बिलासपुर',
+  'चंडीगढ़', 'लुधियाना', 'अमृतसर', 'देहरादून', 'शिमला',
+  'बेंगलुरु', 'चेन्नई', 'हैदराबाद', 'विशाखापत्तनम', 'त्रिवेंद्रम',
+  'भुवनेश्वर', 'कटक', 'रांची', 'जमशेदपुर', 'गुवाहाटी',
+  'पणजी', 'गंगटोक', 'शिलांग', 'इंफाल', 'आइजोल', 'कोहिमा',
+  'अगरतला', 'ईटानगर',
+];
 
 export const BIHAR_GEO_DICTIONARY = [
   // State & Leaders
@@ -58,6 +94,12 @@ export const BIHAR_GEO_DICTIONARY = [
 
 function isBiharRelevant(headline: string, synopsis: string): boolean {
   const text = `${headline} ${synopsis}`;
+
+  // Hard block: if a non-Bihar state/city is mentioned, drop it
+  if (matchesAnyToken(text, NON_BIHAR_STATES)) {
+    return false;
+  }
+
   return matchesAnyToken(text, BIHAR_GEO_DICTIONARY);
 }
 

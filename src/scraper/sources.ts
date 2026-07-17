@@ -208,7 +208,7 @@ export const HINDI_SOURCES: SourceConfig[] = [
     language: 'hi',
     type: 'bihar-dedicated',
     listingUrl: 'https://www.bhaskar.com/local/bihar/',
-    rssUrl: 'https://www.bhaskar.com/rss/national/bihar.xml',
+    // RSS removed — /rss/national/bihar.xml returns non-Bihar articles
     allowedCategories: biharDedicatedAll,
     selectors: { articleLink: 'a[href*="/news/"]' },
   },
