@@ -95,11 +95,11 @@ function NewsCard({ article, prediction, currentSentiment, onRated, onCategoryCo
       </a>
 
       {/* Bottom row — separated by spacing, no divider line */}
-      <div className="flex items-center justify-between mt-auto pt-3">
-        <span className="text-[11px] sm:text-[12px] leading-tight" style={{ color: 'var(--muted)' }}>
+      <div className="flex items-center justify-between mt-auto pt-3 gap-2">
+        <span className="text-[11px] sm:text-[12px] leading-tight min-w-0 truncate flex-shrink" style={{ color: 'var(--muted)' }}>
           {article.source} · {timeAgo(article.published_timestamp)}
         </span>
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
           <SentimentButtons
             articleId={article.id}
             currentSentiment={currentSentiment}

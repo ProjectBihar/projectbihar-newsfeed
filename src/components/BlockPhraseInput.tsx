@@ -65,20 +65,20 @@ export default function BlockPhraseInput({ onBlocked, onUnblocked }: Props) {
   return (
     <div className="w-full">
       {/* Input */}
-      <div className="glass-input flex items-center overflow-hidden w-full">
+      <div className="glass-input flex items-center overflow-hidden w-full min-w-0">
         <input
           type="text"
           value={phrase}
           onChange={(e) => setPhrase(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleBlock()}
-          placeholder='Block keywords or phrases — e.g. "Chennai", "UPSC exam"'
-          className="flex-1 px-4 py-2.5 text-[13px] outline-none bg-transparent"
+          placeholder='Block keywords or phrases...'
+          className="flex-1 min-w-0 px-3 sm:px-4 py-2.5 text-[13px] outline-none bg-transparent truncate"
           style={{ color: 'var(--ink)' }}
         />
         {blockedPhrases.length > 0 && (
           <button
             onClick={() => setShowList(!showList)}
-            className="px-3 py-2.5 text-[11px] font-medium transition-colors"
+            className="px-2 sm:px-3 py-2.5 text-[10px] sm:text-[11px] font-medium transition-colors flex-shrink-0 whitespace-nowrap"
             style={{ color: 'var(--muted)' }}
           >
             {blockedPhrases.length} blocked
@@ -88,7 +88,7 @@ export default function BlockPhraseInput({ onBlocked, onUnblocked }: Props) {
           <button
             onClick={handleBlock}
             disabled={loading}
-            className="px-4 py-2.5 text-[12px] font-medium transition-colors disabled:opacity-50"
+            className="px-3 sm:px-4 py-2.5 text-[11px] sm:text-[12px] font-medium transition-colors disabled:opacity-50 flex-shrink-0"
             style={{ color: 'var(--accent)' }}
           >
             {loading ? '...' : 'Block'}
