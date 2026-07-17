@@ -1,19 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { createClient } from '@/lib/supabase-server';
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
 export async function GET(request: NextRequest) {
   const tab = request.nextUrl.searchParams.get('tab') || 'curated';
   const minTimestamp = Date.now() - SEVEN_DAYS_MS;
+  const supabase = await createClient();
 
   if (tab === 'all') {
-    // All News: no is_noise filter, ordered by published_timestamp desc
     const { data, error } = await supabase
       .from('articles')
       .select('*')
@@ -21,14 +16,13 @@ export async function GET(request: NextRequest) {
       .order('published_timestamp', { ascending: false });
 
     if (error) {
-      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 
     return NextResponse.json({ articles: data || [] });
   }
 
-  // Curated (default): is_noise = false, sorted by sentiment score
-  // Score: positive +2, negative -2, neutral/unrated 0
+  // Curated: is_noise = false, sorted by sentiment score
   const { data, error } = await supabase
     .from('articles')
     .select('*')
@@ -36,10 +30,9 @@ export async function GET(request: NextRequest) {
     .gte('published_timestamp', minTimestamp);
 
   if (error) {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 
-  // Sort by sentiment score, then by published_timestamp
   const articles = (data || []).map((a) => {
     let score = 0;
     if (a.user_rating === 'positive') score = 2;
@@ -48,14 +41,10 @@ export async function GET(request: NextRequest) {
   });
 
   articles.sort((a, b) => {
-    // Higher score rises, lower score sinks
     if (b._score !== a._score) return b._score - a._score;
-    // Same score: chronological
     return b.published_timestamp - a.published_timestamp;
   });
 
-  // Remove the internal score field
   const result = articles.map(({ _score, ...rest }) => rest);
-
   return NextResponse.json({ articles: result });
 }
