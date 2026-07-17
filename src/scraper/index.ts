@@ -69,11 +69,24 @@ async function scrapeSource(source: SourceConfig): Promise<number> {
 
   if (discovered.length === 0) return 0;
 
+  // Pre-filter: drop articles with RSS dates older than 7 days (avoids fetching pages)
+  const now = Date.now();
+  const beforeFilter = discovered.length;
+  discovered = discovered.filter((a) => {
+    if (a.pubDate && (now - a.pubDate > SEVEN_DAYS_MS || a.pubDate > now + 3_600_000)) {
+      return false;
+    }
+    return true;
+  });
+  if (discovered.length < beforeFilter) {
+    console.log(`  ${beforeFilter - discovered.length} articles dropped by RSS date filter`);
+  }
+
   // Batch dedup: collect all IDs and check which already exist
   const allIds = discovered.map((a) => generateArticleId(a.url));
   const existingIds = await getExistingIds(allIds);
-  const newArticles = discovered.filter((_, i) => !existingIds.has(allIds[i]));
-  console.log(`  ${newArticles.length} new, ${discovered.length - newArticles.length} already in DB`);
+  const newCount = discovered.filter((_, i) => !existingIds.has(allIds[i])).length;
+  console.log(`  ${newCount} new, ${discovered.length - newCount} already in DB`);
 
   let stored = 0;
 
@@ -91,20 +104,21 @@ async function scrapeSource(source: SourceConfig): Promise<number> {
         continue;
       }
 
-      // Date validation
-      if (!data.published_timestamp) {
+      // Date validation — prefer RSS date if available, fall back to page-extracted date
+      const published_timestamp = article.pubDate || data.published_timestamp;
+      if (!published_timestamp) {
         console.log(`  ✗ No date found: ${data.headline.slice(0, 60)}`);
         continue;
       }
 
       // Drop future dates (timezone leak guard)
-      if (data.published_timestamp > Date.now() + 3_600_000) {
+      if (published_timestamp > now + 3_600_000) {
         console.log(`  ✗ Future date: ${data.headline.slice(0, 60)}`);
         continue;
       }
 
       // Drop articles older than 7 days
-      if (Date.now() - data.published_timestamp > SEVEN_DAYS_MS) {
+      if (now - published_timestamp > SEVEN_DAYS_MS) {
         console.log(`  ✗ Too old: ${data.headline.slice(0, 60)}`);
         continue;
       }
@@ -138,7 +152,7 @@ async function scrapeSource(source: SourceConfig): Promise<number> {
         source: source.name,
         language: source.language,
         category,
-        published_timestamp: data.published_timestamp,
+        published_timestamp,
         ingested_at: Date.now(),
       };
 
@@ -158,7 +172,7 @@ async function scrapeSource(source: SourceConfig): Promise<number> {
 
 async function discoverFromSource(
   source: SourceConfig
-): Promise<{ url: string; headline?: string }[]> {
+): Promise<{ url: string; headline?: string; pubDate?: number }[]> {
   // Try RSS first if available
   if (source.rssUrl) {
     const rssArticles = await discoverFromRSS(source);

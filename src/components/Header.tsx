@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 
 interface Props {
   totalArticles: number;
@@ -16,6 +16,7 @@ interface SentimentCounts {
 export default function Header({ totalArticles, onRefresh }: Props) {
   const [dark, setDark] = useState(false);
   const [counts, setCounts] = useState<SentimentCounts>({ positive: 0, negative: 0, neutral: 0 });
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem('theme');
@@ -25,33 +26,44 @@ export default function Header({ totalArticles, onRefresh }: Props) {
     }
   }, []);
 
-  const fetchCounts = async () => {
+  const fetchCounts = useCallback(async () => {
     try {
       const res = await fetch('/api/sentiment/counts');
       const data = await res.json();
-      setCounts(data);
-    } catch (err) {
-      console.error('Failed to fetch counts:', err);
-    }
-  };
+      setCounts((prev) => {
+        if (prev.positive === data.positive && prev.negative === data.negative && prev.neutral === data.neutral) return prev;
+        return data;
+      });
+    } catch {}
+  }, []);
 
   useEffect(() => {
     fetchCounts();
     const interval = setInterval(fetchCounts, 60_000);
     return () => clearInterval(interval);
+  }, [fetchCounts]);
+
+  const toggleTheme = useCallback(() => {
+    setDark((prev) => {
+      const next = !prev;
+      if (next) {
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
+      }
+      return next;
+    });
   }, []);
 
-  const toggleTheme = () => {
-    const next = !dark;
-    setDark(next);
-    if (next) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
-  };
+  const handleRefresh = useCallback(() => {
+    if (!onRefresh || refreshing) return;
+    setRefreshing(true);
+    onRefresh();
+    // Reset refreshing state after a short delay (parent handles actual loading)
+    setTimeout(() => setRefreshing(false), 1500);
+  }, [onRefresh, refreshing]);
 
   return (
     <header className="glass-header sticky top-0 z-50">
@@ -91,11 +103,12 @@ export default function Header({ totalArticles, onRefresh }: Props) {
 
           {/* Refresh */}
           <button
-            onClick={onRefresh}
-            className="glass-pill px-3 py-1.5 text-[12px] font-medium rounded-lg"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="glass-pill px-3 py-1.5 text-[12px] font-medium rounded-lg disabled:opacity-50"
             style={{ color: 'var(--ink-secondary)' }}
           >
-            Refresh
+            {refreshing ? '...' : 'Refresh'}
           </button>
 
           {/* Dark mode toggle */}

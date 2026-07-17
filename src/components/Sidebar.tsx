@@ -76,6 +76,7 @@ export default function Sidebar() {
       <div className="pt-4 border-t border-[var(--color-border)]">
         <button
           onClick={() => {
+            window.dispatchEvent(new Event('open-block-dialog'));
             const dialog = document.getElementById('block-dialog') as HTMLDialogElement;
             dialog?.showModal();
           }}

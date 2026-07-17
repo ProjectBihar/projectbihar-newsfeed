@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import Link from 'next/link';
 import type { Category } from '@/scraper/config';
 
@@ -21,7 +22,7 @@ const CATEGORIES: { slug: Category | 'all'; label: string }[] = [
   { slug: 'governance', label: 'Governance' },
 ];
 
-export default function CategoryTabs({ active = 'all', language = 'all', onLanguageChange }: CategoryTabsProps) {
+function CategoryTabs({ active = 'all', language = 'all', onLanguageChange }: CategoryTabsProps) {
   return (
     <div className="flex items-center gap-3 py-2 flex-wrap">
       {/* Category tabs */}
@@ -31,7 +32,7 @@ export default function CategoryTabs({ active = 'all', language = 'all', onLangu
           <Link
             key={cat.slug}
             href={cat.slug === 'all' ? '/' : `/category/${cat.slug}`}
-            className={`text-[13px] font-medium transition-all ${
+            className={`text-[13px] font-medium transition-all gpu-accel ${
               isActive
                 ? 'bg-[var(--accent)] text-white px-3 py-1 rounded-full'
                 : 'px-2 py-0.5 rounded-full hover:opacity-80'
@@ -51,7 +52,7 @@ export default function CategoryTabs({ active = 'all', language = 'all', onLangu
         <button
           key={lang}
           onClick={() => onLanguageChange?.(lang)}
-          className={`text-[13px] font-medium transition-all ${
+          className={`text-[13px] font-medium transition-all gpu-accel ${
             language === lang
               ? 'bg-[var(--accent)] text-white px-3 py-1 rounded-full'
               : 'px-2 py-0.5 rounded-full hover:opacity-80'
@@ -64,3 +65,5 @@ export default function CategoryTabs({ active = 'all', language = 'all', onLangu
     </div>
   );
 }
+
+export default memo(CategoryTabs);

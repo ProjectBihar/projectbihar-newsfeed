@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { CATEGORIES } from '@/lib/constants';
 import type { Category } from '@/scraper/config';
 import SentimentButtons from './SentimentButtons';
@@ -40,22 +41,22 @@ interface Props {
   onCategoryCorrected?: (articleId: string, newCategory: string) => void;
 }
 
-export default function NewsCard({ article, prediction, currentSentiment, onRated, onCategoryCorrected }: Props) {
+function NewsCard({ article, prediction, currentSentiment, onRated, onCategoryCorrected }: Props) {
   const cat = getCategoryMeta(article.category);
 
   const predictionColor = prediction?.sentiment === 'positive' ? '#34C759'
     : prediction?.sentiment === 'negative' ? '#FF3B30'
     : 'transparent';
 
-  const predictionOpacity = prediction?.confidence || 0;
+  const showBorder = prediction && prediction.sentiment !== 'neutral' && prediction.confidence > 0;
 
   return (
-    <article className="glass-card p-3.5 flex flex-col relative">
+    <article className="glass-card p-3.5 flex flex-col relative gpu-accel">
       {/* Predicted sentiment dot on left border */}
-      {prediction && prediction.sentiment !== 'neutral' && prediction.confidence > 0 && (
+      {showBorder && (
         <div
           className="absolute left-0 top-0 bottom-0 w-[3px]"
-          style={{ backgroundColor: predictionColor, opacity: predictionOpacity }}
+          style={{ backgroundColor: predictionColor, opacity: prediction.confidence }}
         />
       )}
 
@@ -111,3 +112,5 @@ export default function NewsCard({ article, prediction, currentSentiment, onRate
     </article>
   );
 }
+
+export default memo(NewsCard);

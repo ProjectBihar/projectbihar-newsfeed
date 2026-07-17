@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { CATEGORIES } from '@/lib/constants';
 
 interface Props {
@@ -9,7 +9,7 @@ interface Props {
   onCorrected?: (newCategory: string) => void;
 }
 
-export default function CategoryCorrection({ articleId, currentCategory, onCorrected }: Props) {
+function CategoryCorrection({ articleId, currentCategory, onCorrected }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -27,15 +27,15 @@ export default function CategoryCorrection({ articleId, currentCategory, onCorre
     return () => document.removeEventListener('mousedown', handleClick);
   }, [isOpen]);
 
-  const closeDropdown = () => {
+  const closeDropdown = useCallback(() => {
     setIsClosing(true);
     setTimeout(() => {
       setIsOpen(false);
       setIsClosing(false);
-    }, 180);
-  };
+    }, 100);
+  }, []);
 
-  const handleCorrect = async (newCategory: string) => {
+  const handleCorrect = useCallback(async (newCategory: string) => {
     if (newCategory === currentCategory) {
       closeDropdown();
       return;
@@ -53,23 +53,23 @@ export default function CategoryCorrection({ articleId, currentCategory, onCorre
       console.error('Failed to correct category:', err);
     }
     setLoading(false);
-  };
+  }, [articleId, currentCategory, onCorrected, closeDropdown]);
 
-  const toggleDropdown = () => {
+  const toggleDropdown = useCallback(() => {
     if (isOpen) {
       closeDropdown();
     } else {
       setIsOpen(true);
       setIsClosing(false);
     }
-  };
+  }, [isOpen, closeDropdown]);
 
   return (
     <div className="relative" ref={ref}>
       {/* Edit button */}
       <button
         onClick={toggleDropdown}
-        className="p-1 rounded transition-all hover:scale-110"
+        className="p-1 rounded transition-all hover:scale-110 gpu-accel"
         style={{ color: 'var(--muted)', opacity: 0.5 }}
         title="Correct category"
       >
@@ -82,12 +82,12 @@ export default function CategoryCorrection({ articleId, currentCategory, onCorre
       {/* Category dropdown */}
       {isOpen && (
         <div
-          className="absolute top-full left-0 mt-1 z-50 glass-card p-2 min-w-[140px]"
+          className="absolute top-full left-0 mt-1 z-50 glass-card p-2 min-w-[140px] gpu-accel"
           style={{
             boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
             opacity: isClosing ? 0 : 1,
             transform: isClosing ? 'translateY(-4px)' : 'translateY(0)',
-            transition: 'opacity 180ms ease-out, transform 180ms ease-out',
+            transition: 'opacity 100ms ease-out, transform 100ms ease-out',
           }}
         >
           <div className="text-[10px] font-medium uppercase tracking-wide mb-1.5" style={{ color: 'var(--muted)' }}>
@@ -122,3 +122,5 @@ export default function CategoryCorrection({ articleId, currentCategory, onCorre
     </div>
   );
 }
+
+export default memo(CategoryCorrection);

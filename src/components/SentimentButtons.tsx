@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 
 interface Props {
   articleId: string;
@@ -12,8 +12,11 @@ export default function SentimentButtons({ articleId, currentSentiment, onRated 
   const [selected, setSelected] = useState<string | null>(currentSentiment || null);
   const [loading, setLoading] = useState(false);
 
-  const handleRate = async (sentiment: string) => {
+  const handleRate = useCallback(async (sentiment: string) => {
     if (loading) return;
+    // Optimistic update — feel instant
+    setSelected(sentiment);
+    onRated?.(sentiment);
     setLoading(true);
     try {
       await fetch('/api/sentiment', {
@@ -21,13 +24,11 @@ export default function SentimentButtons({ articleId, currentSentiment, onRated 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ article_id: articleId, sentiment }),
       });
-      setSelected(sentiment);
-      onRated?.(sentiment);
     } catch (err) {
       console.error('Failed to rate:', err);
     }
     setLoading(false);
-  };
+  }, [articleId, loading, onRated]);
 
   return (
     <div className="flex items-center gap-1">
@@ -35,7 +36,7 @@ export default function SentimentButtons({ articleId, currentSentiment, onRated 
       <button
         onClick={() => handleRate('positive')}
         disabled={loading}
-        className="p-1 rounded transition-all hover:scale-110"
+        className="p-1 rounded transition-all hover:scale-110 gpu-accel"
         style={{
           color: selected === 'positive' ? '#34C759' : 'var(--muted)',
           opacity: selected === 'positive' ? 1 : 0.5,
@@ -52,7 +53,7 @@ export default function SentimentButtons({ articleId, currentSentiment, onRated 
       <button
         onClick={() => handleRate('negative')}
         disabled={loading}
-        className="p-1 rounded transition-all hover:scale-110"
+        className="p-1 rounded transition-all hover:scale-110 gpu-accel"
         style={{
           color: selected === 'negative' ? '#FF3B30' : 'var(--muted)',
           opacity: selected === 'negative' ? 1 : 0.5,
@@ -69,7 +70,7 @@ export default function SentimentButtons({ articleId, currentSentiment, onRated 
       <button
         onClick={() => handleRate('neutral')}
         disabled={loading}
-        className="p-1 rounded transition-all hover:scale-110"
+        className="p-1 rounded transition-all hover:scale-110 gpu-accel"
         style={{
           color: selected === 'neutral' ? '#8E8E93' : 'var(--muted)',
           opacity: selected === 'neutral' ? 1 : 0.5,

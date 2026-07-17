@@ -27,8 +27,9 @@ export async function discoverFromRSS(
       .map((item) => ({
         url: item.link!,
         headline: item.title || undefined,
+        pubDate: extractRSSDate(item) ?? undefined,
       }))
-      .slice(0, 30); // Cap at 30 articles per source per scrape
+      .slice(0, 30);
   } catch (err) {
     console.error(`  RSS failed for ${source.name}:`, (err as Error).message);
     return [];

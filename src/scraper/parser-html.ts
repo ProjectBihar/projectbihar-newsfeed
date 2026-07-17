@@ -4,6 +4,7 @@ import type { SourceConfig } from './sources';
 export interface DiscoveredArticle {
   url: string;
   headline?: string;
+  pubDate?: number; // epoch ms, when available from RSS
 }
 
 /**

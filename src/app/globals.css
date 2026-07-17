@@ -3,44 +3,53 @@
 :root {
   --bg: #F5F1EB;
   --bg-secondary: #EDE9E3;
-  --card: rgba(255, 255, 255, 0.72);
+  --card: rgba(255, 255, 255, 0.82);
   --card-border: rgba(255, 255, 255, 0.5);
-  --card-hover: rgba(255, 255, 255, 0.85);
+  --card-hover: rgba(255, 255, 255, 0.92);
   --ink: #1A1A1A;
   --ink-secondary: #6B7280;
   --muted: #9CA3AF;
   --accent: #2563EB;
   --border: rgba(0, 0, 0, 0.08);
-  --input-bg: rgba(255, 255, 255, 0.6);
-  --header-bg: rgba(245, 241, 235, 0.8);
-  --pill-bg: rgba(255, 255, 255, 0.5);
+  --input-bg: rgba(255, 255, 255, 0.72);
+  --header-bg: rgba(245, 241, 235, 0.92);
+  --pill-bg: rgba(255, 255, 255, 0.6);
 }
 
 .dark {
   --bg: #1C1C1E;
   --bg-secondary: #2C2C2E;
-  --card: rgba(44, 44, 46, 0.72);
+  --card: rgba(44, 44, 46, 0.82);
   --card-border: rgba(255, 255, 255, 0.08);
-  --card-hover: rgba(58, 58, 60, 0.85);
+  --card-hover: rgba(58, 58, 60, 0.92);
   --ink: #F5F5F7;
   --ink-secondary: #A1A1A6;
   --muted: #6E6E73;
   --accent: #0A84FF;
   --border: rgba(255, 255, 255, 0.1);
-  --input-bg: rgba(44, 44, 46, 0.6);
-  --header-bg: rgba(28, 28, 30, 0.8);
-  --pill-bg: rgba(58, 58, 60, 0.5);
+  --input-bg: rgba(44, 44, 46, 0.72);
+  --header-bg: rgba(28, 28, 30, 0.92);
+  --pill-bg: rgba(58, 58, 60, 0.6);
 }
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
   background-color: var(--bg);
   color: var(--ink);
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 html {
   scroll-behavior: smooth;
+}
+
+/* GPU-accelerated transitions — only animate transform and opacity */
+.gpu-accel {
+  will-change: transform, opacity;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .line-clamp-2 {
@@ -65,14 +74,13 @@ dialog::backdrop {
   background: rgba(0, 0, 0, 0.4);
 }
 
-/* Glassmorphism card */
+/* Glassmorphism card — reduced blur for performance */
 .glass-card {
   background: var(--card);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--card-border);
   border-radius: 12px;
-  transition: all 0.2s ease;
+  contain: layout style;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
 }
 
 .glass-card:hover {
@@ -87,11 +95,9 @@ dialog::backdrop {
 /* Glassmorphism input */
 .glass-input {
   background: var(--input-bg);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
   border: 1px solid var(--border);
   border-radius: 10px;
-  transition: all 0.2s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .glass-input:focus-within {
@@ -103,21 +109,18 @@ dialog::backdrop {
   box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.15);
 }
 
-/* Glassmorphism header */
+/* Glassmorphism header — contain for repaint performance */
 .glass-header {
   background: var(--header-bg);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--border);
+  contain: layout style;
 }
 
 /* Glassmorphism pill */
 .glass-pill {
   background: var(--pill-bg);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
   border: 1px solid var(--border);
-  transition: all 0.15s ease;
+  transition: background 0.1s ease;
 }
 
 .glass-pill:hover {
@@ -127,3 +130,35 @@ dialog::backdrop {
 .dark .glass-pill:hover {
   background: rgba(58, 58, 60, 0.7);
 }
+
+/* Skeleton loading animation */
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--border) 25%, rgba(128,128,128,0.08) 50%, var(--border) 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+/* Fade-in for articles appearing */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeInUp 0.2s ease-out both;
+}
+
+/* Staggered grid animation */
+.grid > *:nth-child(1) { animation-delay: 0ms; }
+.grid > *:nth-child(2) { animation-delay: 20ms; }
+.grid > *:nth-child(3) { animation-delay: 40ms; }
+.grid > *:nth-child(4) { animation-delay: 60ms; }
+.grid > *:nth-child(5) { animation-delay: 80ms; }
+.grid > *:nth-child(6) { animation-delay: 100ms; }
+.grid > *:nth-child(n+7) { animation-delay: 120ms; }

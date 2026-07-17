@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Header from '@/components/Header';
 import NewsCard from '@/components/NewsCard';
 import CategoryTabs from '@/components/CategoryTabs';
@@ -14,6 +14,20 @@ interface Prediction {
   confidence: number;
 }
 
+function SkeletonCard() {
+  return (
+    <div className="glass-card p-3.5 flex flex-col gap-2.5">
+      <div className="skeleton h-3 w-16 rounded" />
+      <div className="skeleton h-4 w-full rounded" />
+      <div className="skeleton h-4 w-3/4 rounded" />
+      <div className="flex justify-between mt-auto pt-2">
+        <div className="skeleton h-3 w-24 rounded" />
+        <div className="skeleton h-3 w-16 rounded" />
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,68 +36,66 @@ export default function Home() {
   const [blockedPhrases, setBlockedPhrases] = useState<string[]>([]);
   const [predictions, setPredictions] = useState<Record<string, Prediction>>({});
   const [ratings, setRatings] = useState<Record<string, string>>({});
+  const predictionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const fetchArticles = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/articles');
-      const data = await res.json();
-      setArticles(data.articles || []);
-    } catch (err) {
-      console.error('Failed to fetch articles:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchBlockedPhrases = async () => {
-    try {
-      const res = await fetch('/api/block');
-      const data = await res.json();
-      const phrases = (data.phrases || []).map((p: { phrase: string }) => p.phrase);
-      setBlockedPhrases(phrases);
-    } catch (err) {
-      console.error('Failed to fetch blocked phrases:', err);
-    }
-  };
-
-  const fetchPredictions = useCallback(async (articleIds: string[]) => {
-    if (articleIds.length === 0) return;
-    try {
-      const res = await fetch(`/api/sentiment/predict?ids=${articleIds.join(',')}`);
-      const data = await res.json();
-      if (data.predictions) setPredictions(data.predictions);
-    } catch (err) {
-      console.error('Failed to fetch predictions:', err);
-    }
-  }, []);
-
-  const fetchRatings = useCallback(async () => {
-    try {
-      const res = await fetch('/api/sentiment');
-      const data = await res.json();
-      const ratingsMap: Record<string, string> = {};
-      for (const r of data.ratings || []) {
-        ratingsMap[r.article_id] = r.sentiment;
-      }
-      setRatings(ratingsMap);
-    } catch (err) {
-      console.error('Failed to fetch ratings:', err);
-    }
-  }, []);
-
-  // Initialize: fetch articles, blocked phrases, and ratings
+  // Parallelize all initial fetches
   useEffect(() => {
-    fetchArticles();
-    fetchBlockedPhrases();
-    fetchRatings();
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const [articlesRes, blockedRes, ratingsRes] = await Promise.all([
+          fetch('/api/articles'),
+          fetch('/api/block'),
+          fetch('/api/sentiment'),
+        ]);
+        if (cancelled) return;
+
+        const [articlesData, blockedData, ratingsData] = await Promise.all([
+          articlesRes.json(),
+          blockedRes.json(),
+          ratingsRes.json(),
+        ]);
+        if (cancelled) return;
+
+        setArticles(articlesData.articles || []);
+        setBlockedPhrases((blockedData.phrases || []).map((p: { phrase: string }) => p.phrase));
+        const ratingsMap: Record<string, string> = {};
+        for (const r of ratingsData.ratings || []) {
+          ratingsMap[r.article_id] = r.sentiment;
+        }
+        setRatings(ratingsMap);
+      } catch (err) {
+        console.error('Failed to initialize:', err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Debounced predictions fetch — batch into one call after articles settle
+  const schedulePredictions = useCallback((articleIds: string[]) => {
+    if (predictionTimer.current) clearTimeout(predictionTimer.current);
+    predictionTimer.current = setTimeout(() => {
+      if (articleIds.length === 0) return;
+      fetch(`/api/sentiment/predict?ids=${articleIds.join(',')}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.predictions) setPredictions(data.predictions);
+        })
+        .catch(() => {});
+    }, 300);
   }, []);
 
   useEffect(() => {
     if (articles.length > 0) {
-      fetchPredictions(articles.map((a) => a.id));
+      schedulePredictions(articles.map((a) => a.id));
     }
-  }, [articles, fetchPredictions]);
+    return () => {
+      if (predictionTimer.current) clearTimeout(predictionTimer.current);
+    };
+  }, [articles, schedulePredictions]);
 
   const filtered = useMemo(() => {
     return articles.filter((a) => {
@@ -96,8 +108,7 @@ export default function Home() {
 
   const handleRated = useCallback((articleId: string, sentiment: string) => {
     setRatings((prev) => ({ ...prev, [articleId]: sentiment }));
-    fetchPredictions(articles.map((a) => a.id));
-  }, [articles, fetchPredictions]);
+  }, []);
 
   const handleCategoryCorrected = useCallback((articleId: string, newCategory: string) => {
     setArticles((prev) =>
@@ -113,9 +124,26 @@ export default function Home() {
     setBlockedPhrases((prev) => prev.filter((p) => p !== phrase));
   }, []);
 
+  const handleRefresh = useCallback(() => {
+    setLoading(true);
+    Promise.all([
+      fetch('/api/articles').then((r) => r.json()),
+      fetch('/api/sentiment').then((r) => r.json()),
+      fetch('/api/block').then((r) => r.json()),
+    ]).then(([articlesData, ratingsData, blockedData]) => {
+      setArticles(articlesData.articles || []);
+      setBlockedPhrases((blockedData.phrases || []).map((p: { phrase: string }) => p.phrase));
+      const ratingsMap: Record<string, string> = {};
+      for (const r of ratingsData.ratings || []) {
+        ratingsMap[r.article_id] = r.sentiment;
+      }
+      setRatings(ratingsMap);
+    }).finally(() => setLoading(false));
+  }, []);
+
   return (
     <div>
-      <Header totalArticles={filtered.length} onRefresh={() => { fetchArticles(); fetchRatings(); fetchBlockedPhrases(); }} />
+      <Header totalArticles={filtered.length} onRefresh={handleRefresh} />
 
       <div className="max-w-[1200px] mx-auto px-[105px] py-4">
         <div className="mb-4">
@@ -132,8 +160,10 @@ export default function Home() {
         />
 
         {loading ? (
-          <div className="text-center py-20 text-gray-400">
-            <p className="text-lg">Loading articles...</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-1">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <SkeletonCard key={i} />
+            ))}
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-20 text-gray-400">
@@ -143,14 +173,15 @@ export default function Home() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-1">
             {filtered.map((article) => (
-              <NewsCard
-                key={article.id}
-                article={article}
-                prediction={predictions[article.id]}
-                currentSentiment={ratings[article.id]}
-                onRated={(sentiment) => handleRated(article.id, sentiment)}
-                onCategoryCorrected={handleCategoryCorrected}
-              />
+              <div key={article.id} className="animate-fade-in">
+                <NewsCard
+                  article={article}
+                  prediction={predictions[article.id]}
+                  currentSentiment={ratings[article.id]}
+                  onRated={(sentiment) => handleRated(article.id, sentiment)}
+                  onCategoryCorrected={handleCategoryCorrected}
+                />
+              </div>
             ))}
           </div>
         )}

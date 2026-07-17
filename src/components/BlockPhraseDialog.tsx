@@ -10,7 +10,6 @@ interface BlockedPhrase {
 }
 
 export default function BlockPhraseDialog() {
-  const [open, setOpen] = useState(false);
   const [phrases, setPhrases] = useState<BlockedPhrase[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -24,43 +23,34 @@ export default function BlockPhraseDialog() {
     if (data) setPhrases(data);
   }, [supabase]);
 
+  // Listen for open dialog via custom event instead of MutationObserver
   useEffect(() => {
-    const dialog = document.getElementById('block-dialog') as HTMLDialogElement;
-    if (!dialog) return;
-
-    const observer = new MutationObserver(() => {
-      if (dialog.open) {
-        setOpen(true);
-        loadPhrases();
-      } else {
-        setOpen(false);
-      }
-    });
-
-    observer.observe(dialog, { attributes: true, attributeFilter: ['open'] });
-    return () => observer.disconnect();
+    const handleOpen = () => loadPhrases();
+    window.addEventListener('open-block-dialog', handleOpen);
+    return () => window.removeEventListener('open-block-dialog', handleOpen);
   }, [loadPhrases]);
 
-  const addPhrase = async () => {
+  const addPhrase = useCallback(async () => {
     const phrase = input.trim();
-    if (!phrase) return;
+    if (!phrase || loading) return;
     setLoading(true);
-
-    const { error } = await supabase
-      .from('blocked_phrases')
-      .insert({ phrase });
-
+    const { error } = await supabase.from('blocked_phrases').insert({ phrase });
     if (!error) {
       setInput('');
       await loadPhrases();
     }
     setLoading(false);
-  };
+  }, [input, loading, supabase, loadPhrases]);
 
-  const removePhrase = async (id: string) => {
+  const removePhrase = useCallback(async (id: string) => {
     await supabase.from('blocked_phrases').delete().eq('id', id);
     await loadPhrases();
-  };
+  }, [supabase, loadPhrases]);
+
+  const closeDialog = useCallback(() => {
+    const dialog = document.getElementById('block-dialog') as HTMLDialogElement;
+    dialog?.close();
+  }, []);
 
   return (
     <dialog
@@ -73,10 +63,7 @@ export default function BlockPhraseDialog() {
             Blocked Phrases
           </h2>
           <button
-            onClick={() => {
-              const dialog = document.getElementById('block-dialog') as HTMLDialogElement;
-              dialog?.close();
-            }}
+            onClick={closeDialog}
             className="text-gray-400 hover:text-gray-600"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">

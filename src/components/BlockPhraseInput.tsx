@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 interface BlockedPhrase {
   id: string;
@@ -19,22 +19,20 @@ export default function BlockPhraseInput({ onBlocked, onUnblocked }: Props) {
   const [blockedPhrases, setBlockedPhrases] = useState<BlockedPhrase[]>([]);
   const [showList, setShowList] = useState(false);
 
-  const fetchBlocked = async () => {
+  const fetchBlocked = useCallback(async () => {
     try {
       const res = await fetch('/api/block');
       const data = await res.json();
       setBlockedPhrases(data.phrases || []);
-    } catch (err) {
-      console.error('Failed to fetch blocked phrases:', err);
-    }
-  };
+    } catch {}
+  }, []);
 
   useEffect(() => {
     fetchBlocked();
-  }, []);
+  }, [fetchBlocked]);
 
-  const handleBlock = async () => {
-    if (!phrase.trim()) return;
+  const handleBlock = useCallback(async () => {
+    if (!phrase.trim() || loading) return;
     setLoading(true);
     try {
       const res = await fetch('/api/block', {
@@ -42,31 +40,27 @@ export default function BlockPhraseInput({ onBlocked, onUnblocked }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phrase: phrase.trim() }),
       });
-      const data = await res.json();
       if (res.ok) {
+        const newPhrase = phrase.trim();
         setPhrase('');
+        onBlocked?.(newPhrase);
         fetchBlocked();
-        onBlocked?.(phrase.trim());
       }
-    } catch (err) {
-      console.error('Failed to block phrase:', err);
-    }
+    } catch {}
     setLoading(false);
-  };
+  }, [phrase, loading, onBlocked, fetchBlocked]);
 
-  const handleUnblock = async (id: string, phraseText: string) => {
+  const handleUnblock = useCallback(async (id: string, phraseText: string) => {
     try {
       await fetch('/api/block', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id }),
       });
-      fetchBlocked();
       onUnblocked?.(phraseText);
-    } catch (err) {
-      console.error('Failed to unblock phrase:', err);
-    }
-  };
+      fetchBlocked();
+    } catch {}
+  }, [onUnblocked, fetchBlocked]);
 
   return (
     <div className="w-full">
@@ -97,14 +91,14 @@ export default function BlockPhraseInput({ onBlocked, onUnblocked }: Props) {
             className="px-4 py-2.5 text-[12px] font-medium transition-colors disabled:opacity-50"
             style={{ color: 'var(--accent)' }}
           >
-            {loading ? 'Blocking...' : 'Block'}
+            {loading ? '...' : 'Block'}
           </button>
         )}
       </div>
 
       {/* Blocked phrases list */}
       {showList && blockedPhrases.length > 0 && (
-        <div className="mt-2 glass-card p-3">
+        <div className="mt-2 glass-card p-3 animate-fade-in">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[11px] font-medium uppercase tracking-wide" style={{ color: 'var(--muted)' }}>
               Blocked Phrases
