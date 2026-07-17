@@ -39,17 +39,18 @@ function extractKeywords(headline: string): string[] {
   });
 }
 
-async function rebuildProfile(supabase: SupabaseClient) {
-  // Fetch all rated articles
+async function rebuildProfile(supabase: SupabaseClient, userId: string) {
+  // Fetch all rated articles for this user only
   const { data: ratings } = await supabase
     .from('user_sentiment')
     .select('article_id, sentiment, articles(headline)')
+    .eq('user_id', userId)
     .neq('sentiment', 'neutral');
 
   if (!ratings || ratings.length === 0) return;
 
-  // Clear existing profile
-  await supabase.from('user_sentiment_profile').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  // Clear existing profile for this user only
+  await supabase.from('user_sentiment_profile').delete().eq('user_id', userId);
 
   // Extract keywords and count frequencies
   const keywordCounts: Record<string, Record<string, number>> = {};
@@ -67,13 +68,13 @@ async function rebuildProfile(supabase: SupabaseClient) {
   }
 
   // Insert keywords with weight >= 2
-  const inserts: { keyword: string; sentiment: string; weight: number }[] = [];
+  const inserts: { keyword: string; sentiment: string; weight: number; user_id: string }[] = [];
   for (const [keyword, counts] of Object.entries(keywordCounts)) {
     if (counts.positive >= 2) {
-      inserts.push({ keyword, sentiment: 'positive', weight: counts.positive });
+      inserts.push({ keyword, sentiment: 'positive', weight: counts.positive, user_id: userId });
     }
     if (counts.negative >= 2) {
-      inserts.push({ keyword, sentiment: 'negative', weight: counts.negative });
+      inserts.push({ keyword, sentiment: 'negative', weight: counts.negative, user_id: userId });
     }
   }
 
@@ -98,7 +99,7 @@ export async function GET() {
     .order('rated_at', { ascending: false });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   return NextResponse.json({ ratings: data || [] });
@@ -123,11 +124,11 @@ export async function POST(req: NextRequest) {
     .upsert({ article_id, sentiment, user_id: user.id }, { onConflict: 'article_id,user_id' });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   // Rebuild keyword profile
-  await rebuildProfile(supabase);
+  await rebuildProfile(supabase, user.id);
 
   return NextResponse.json({ ok: true });
 }
@@ -153,11 +154,11 @@ export async function DELETE(req: NextRequest) {
     .eq('user_id', user.id);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   // Rebuild keyword profile
-  await rebuildProfile(supabase);
+  await rebuildProfile(supabase, user.id);
 
   return NextResponse.json({ ok: true });
 }

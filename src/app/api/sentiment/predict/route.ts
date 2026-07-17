@@ -36,13 +36,19 @@ function extractKeywords(headline: string): string[] {
 
 export async function GET(req: NextRequest) {
   const supabase = await createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  }
+
   const idsParam = req.nextUrl.searchParams.get('ids');
 
   if (!idsParam) {
     return NextResponse.json({ error: 'Missing ids parameter' }, { status: 400 });
   }
 
-  const ids = idsParam.split(',').filter(Boolean);
+  const ids = idsParam.split(',').filter(Boolean).slice(0, 100);
 
   // Fetch articles
   const { data: articles } = await supabase

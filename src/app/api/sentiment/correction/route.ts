@@ -41,11 +41,19 @@ function extractKeywords(headline: string): string[] {
   });
 }
 
+const ALLOWED_CATEGORIES = ['economy', 'infrastructure', 'industry', 'agriculture', 'education', 'healthcare', 'environment', 'governance'];
+
 export async function POST(req: NextRequest) {
   const supabase = await createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  }
+
   const { article_id, corrected_category } = await req.json();
 
-  if (!article_id || !corrected_category) {
+  if (!article_id || !corrected_category || !ALLOWED_CATEGORIES.includes(corrected_category)) {
     return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
   }
 
@@ -105,6 +113,11 @@ export async function POST(req: NextRequest) {
 
 export async function GET() {
   const supabase = await createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  }
 
   const { data: corrections, error } = await supabase
     .from('category_corrections')
@@ -113,7 +126,7 @@ export async function GET() {
     .limit(50);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   const { data: learned } = await supabase

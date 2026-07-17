@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
       .order('published_timestamp', { ascending: false });
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 
     return NextResponse.json({ articles: data || [] });
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     .gte('published_timestamp', minTimestamp);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   // Sort by sentiment score, then by published_timestamp
