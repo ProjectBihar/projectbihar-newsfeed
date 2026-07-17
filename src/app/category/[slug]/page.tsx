@@ -115,7 +115,7 @@ function FeedTabSwitcher({ active, onChange, curatedCount, allCount }: { active:
         }`}
         style={active !== 'curated' ? { color: 'var(--ink-secondary)' } : undefined}
       >
-        Curated
+        Pre-Curated
         <span className="ml-1.5 text-[11px] opacity-70">({curatedCount})</span>
       </button>
       <button
