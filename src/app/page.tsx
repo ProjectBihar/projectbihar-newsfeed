@@ -160,9 +160,11 @@ export default function Home() {
         />
 
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mt-2 items-stretch">
             {Array.from({ length: 6 }).map((_, i) => (
-              <SkeletonCard key={i} />
+              <div key={i} className="h-full">
+                <SkeletonCard />
+              </div>
             ))}
           </div>
         ) : filtered.length === 0 ? (
@@ -171,9 +173,9 @@ export default function Home() {
             <p className="text-sm">Check back after the next scrape cycle.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mt-2 items-stretch">
             {filtered.map((article) => (
-              <div key={article.id} className="animate-fade-in">
+              <div key={article.id} className="animate-fade-in h-full">
                 <NewsCard
                   article={article}
                   prediction={predictions[article.id]}

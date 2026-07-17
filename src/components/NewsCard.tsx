@@ -87,7 +87,7 @@ function NewsCard({ article, prediction, currentSentiment, onRated, onCategoryCo
         className="block mb-3 flex-1 group"
       >
         <h3
-          className="text-[14.5px] sm:text-[15px] font-semibold leading-[1.45] transition-colors group-hover:text-[var(--accent)]"
+          className="text-[14.5px] sm:text-[15px] font-normal leading-[1.5] transition-colors group-hover:text-[var(--accent)]"
           style={{ color: 'var(--ink)' }}
         >
           {article.headline}
