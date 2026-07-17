@@ -14,6 +14,9 @@ interface Prediction {
   confidence: number;
 }
 
+const DESKTOP_PER_PAGE = 70;
+const MOBILE_PER_PAGE = 50;
+
 function SkeletonCard() {
   return (
     <div className="glass-card p-3.5 flex flex-col gap-2.5">
@@ -28,6 +31,64 @@ function SkeletonCard() {
   );
 }
 
+function Pagination({ page, totalPages, onPageChange }: { page: number; totalPages: number; onPageChange: (p: number) => void }) {
+  if (totalPages <= 1) return null;
+
+  const pages: (number | '...')[] = [];
+  if (totalPages <= 7) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+  } else {
+    pages.push(1);
+    if (page > 3) pages.push('...');
+    for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) {
+      pages.push(i);
+    }
+    if (page < totalPages - 2) pages.push('...');
+    pages.push(totalPages);
+  }
+
+  return (
+    <div className="flex items-center justify-center gap-1.5 mt-6 mb-2">
+      <button
+        onClick={() => onPageChange(page - 1)}
+        disabled={page === 1}
+        className="glass-pill px-3 py-1.5 text-[12px] font-medium rounded-lg disabled:opacity-30 transition-opacity"
+        style={{ color: 'var(--ink-secondary)' }}
+      >
+        Prev
+      </button>
+
+      {pages.map((p, i) =>
+        p === '...' ? (
+          <span key={`dots-${i}`} className="px-1 text-[12px]" style={{ color: 'var(--muted)' }}>...</span>
+        ) : (
+          <button
+            key={p}
+            onClick={() => onPageChange(p)}
+            className={`min-w-[32px] h-[32px] rounded-lg text-[12px] font-medium transition-all ${
+              p === page
+                ? 'bg-[var(--accent)] text-white shadow-sm'
+                : 'glass-pill hover:opacity-80'
+            }`}
+            style={p !== page ? { color: 'var(--ink-secondary)' } : undefined}
+          >
+            {p}
+          </button>
+        )
+      )}
+
+      <button
+        onClick={() => onPageChange(page + 1)}
+        disabled={page === totalPages}
+        className="glass-pill px-3 py-1.5 text-[12px] font-medium rounded-lg disabled:opacity-30 transition-opacity"
+        style={{ color: 'var(--ink-secondary)' }}
+      >
+        Next
+      </button>
+    </div>
+  );
+}
+
 export default function Home() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,7 +97,17 @@ export default function Home() {
   const [blockedPhrases, setBlockedPhrases] = useState<string[]>([]);
   const [predictions, setPredictions] = useState<Record<string, Prediction>>({});
   const [ratings, setRatings] = useState<Record<string, string>>({});
+  const [page, setPage] = useState(1);
+  const [isMobile, setIsMobile] = useState(false);
   const predictionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Detect viewport
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   // Parallelize all initial fetches
   useEffect(() => {
@@ -74,7 +145,7 @@ export default function Home() {
     return () => { cancelled = true; };
   }, []);
 
-  // Debounced predictions fetch — batch into one call after articles settle
+  // Debounced predictions fetch
   const schedulePredictions = useCallback((articleIds: string[]) => {
     if (predictionTimer.current) clearTimeout(predictionTimer.current);
     predictionTimer.current = setTimeout(() => {
@@ -105,6 +176,16 @@ export default function Home() {
       return true;
     });
   }, [articles, activeCategory, language, blockedPhrases]);
+
+  // Reset page when filters change
+  useEffect(() => { setPage(1); }, [activeCategory, language, blockedPhrases]);
+
+  const perPage = isMobile ? MOBILE_PER_PAGE : DESKTOP_PER_PAGE;
+  const totalPages = Math.ceil(filtered.length / perPage);
+  const paginated = useMemo(() => {
+    const start = (page - 1) * perPage;
+    return filtered.slice(start, start + perPage);
+  }, [filtered, page, perPage]);
 
   const handleRated = useCallback((articleId: string, sentiment: string | null) => {
     setRatings((prev) => {
@@ -149,6 +230,15 @@ export default function Home() {
     }).finally(() => setLoading(false));
   }, []);
 
+  const scrollToTop = useCallback(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  const handlePageChange = useCallback((p: number) => {
+    setPage(p);
+    scrollToTop();
+  }, [scrollToTop]);
+
   return (
     <div>
       <Header totalArticles={filtered.length} onRefresh={handleRefresh} />
@@ -181,19 +271,27 @@ export default function Home() {
             <p className="text-sm">Check back after the next scrape cycle.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mt-2 items-stretch">
-            {filtered.map((article) => (
-              <div key={article.id} className="animate-fade-in h-full">
-                <NewsCard
-                  article={article}
-                  prediction={predictions[article.id]}
-                  currentSentiment={ratings[article.id]}
-                  onRated={(sentiment) => handleRated(article.id, sentiment)}
-                  onCategoryCorrected={handleCategoryCorrected}
-                />
-              </div>
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mt-2 items-stretch">
+              {paginated.map((article) => (
+                <div key={article.id} className="animate-fade-in h-full">
+                  <NewsCard
+                    article={article}
+                    prediction={predictions[article.id]}
+                    currentSentiment={ratings[article.id]}
+                    onRated={(sentiment) => handleRated(article.id, sentiment)}
+                    onCategoryCorrected={handleCategoryCorrected}
+                  />
+                </div>
+              ))}
+            </div>
+
+            <Pagination page={page} totalPages={totalPages} onPageChange={handlePageChange} />
+
+            <p className="text-center text-[11px] mt-1" style={{ color: 'var(--muted)' }}>
+              Showing {((page - 1) * perPage) + 1}–{Math.min(page * perPage, filtered.length)} of {filtered.length}
+            </p>
+          </>
         )}
       </div>
     </div>
