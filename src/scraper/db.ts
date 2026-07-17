@@ -79,3 +79,23 @@ export async function getExistingIds(ids: string[]): Promise<Set<string>> {
 
   return existing;
 }
+
+/**
+ * Fetch all blocked phrases from the database (for scraper-side filtering).
+ */
+export async function getBlockedPhrases(): Promise<string[]> {
+  const supabase = getSupabaseClient();
+  const { data } = await supabase
+    .from('blocked_phrases')
+    .select('phrase');
+  return (data || []).map((r: { phrase: string }) => r.phrase);
+}
+
+/**
+ * Check if a headline matches any blocked phrase (case-insensitive).
+ */
+export function isBlocked(headline: string, synopsis: string, blockedPhrases: string[]): boolean {
+  if (blockedPhrases.length === 0) return false;
+  const text = `${headline} ${synopsis}`.toLowerCase();
+  return blockedPhrases.some((p) => text.includes(p.toLowerCase()));
+}

@@ -5,7 +5,7 @@ import { extractArticleData } from './article-extractor';
 import { extractPublishDate } from './date-handler';
 import { generateArticleId } from './dedup';
 import { classifyArticle } from './classifier';
-import { upsertArticle, getExistingIds, type ArticleRow } from './db';
+import { upsertArticle, getExistingIds, getBlockedPhrases, isBlocked, type ArticleRow } from './db';
 import { SEVEN_DAYS_MS, DELAY_BETWEEN_REQUESTS_MS } from './config';
 import { matchesAnyToken } from './token-match';
 import { isNoiseArticle } from './noise-filter';
@@ -61,7 +61,7 @@ function isBiharRelevant(headline: string, synopsis: string): boolean {
   return matchesAnyToken(text, BIHAR_GEO_DICTIONARY);
 }
 
-async function scrapeSource(source: SourceConfig): Promise<number> {
+async function scrapeSource(source: SourceConfig, blockedPhrases: string[]): Promise<number> {
   console.log(`\n▶ Scraping: ${source.name} (${source.language})`);
 
   let discovered = await discoverFromSource(source);
@@ -118,6 +118,12 @@ async function scrapeSource(source: SourceConfig): Promise<number> {
       // Actor vs. Action filter — drop pure political/crime noise
       if (isNoiseArticle(data.headline, data.synopsis)) {
         console.log(`  ✗ Political/crime noise: ${data.headline.slice(0, 60)}`);
+        continue;
+      }
+
+      // Check blocked phrases (server-side)
+      if (isBlocked(data.headline, data.synopsis, blockedPhrases)) {
+        console.log(`  ✗ Blocked phrase: ${data.headline.slice(0, 60)}`);
         continue;
       }
 
@@ -197,11 +203,15 @@ async function main() {
   console.log(`Bihar News Scraper — ${new Date().toISOString()}`);
   console.log('═══════════════════════════════════════════');
 
+  // Fetch blocked phrases once
+  const blockedPhrases = await getBlockedPhrases();
+  console.log(`Loaded ${blockedPhrases.length} blocked phrases`);
+
   let totalStored = 0;
 
   for (const source of ALL_SOURCES) {
     try {
-      const count = await scrapeSource(source);
+      const count = await scrapeSource(source, blockedPhrases);
       totalStored += count;
     } catch (err) {
       console.error(`\n✗ FAILED: ${source.name} — ${(err as Error).message}`);
