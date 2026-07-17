@@ -9,7 +9,6 @@ function getServiceClient() {
   return createClient(url, key);
 }
 
-// Stop words for keyword extraction
 const STOP_WORDS_EN = new Set([
   'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
   'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
@@ -29,7 +28,7 @@ const STOP_WORDS_HI = new Set([
   'एक', 'भी', 'था', 'थे', 'है', 'हैं', 'थी', 'गया', 'गई', 'हो', 'हुआ',
   'हुई', 'कर', 'किया', 'इस', 'उस', 'अपने', 'अपनी', 'उन', 'इन', 'वे',
   'ये', 'क्या', 'कैसे', 'क्यों', 'जब', 'तब', 'अब', 'तो', 'ही', 'भी',
-  'मे', 'पे', 'कि', '�ो', 'वो', 'इसमें', 'उसमें', 'यहां', 'वहां',
+  'मे', 'पे', 'कि', 'जो', 'वो', 'इसमें', 'उसमें', 'यहां', 'वहां',
 ]);
 
 function extractKeywords(headline: string): string[] {
@@ -61,53 +60,47 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Article not found' }, { status: 404 });
   }
 
-  // Save correction
-  const { error: corrError } = await supabase
-    .from('category_corrections')
-    .insert({
-      article_id,
-      original_category: article.category,
-      corrected_category,
-    });
-
-  if (corrError) {
-    return NextResponse.json({ error: corrError.message }, { status: 500 });
-  }
-
-  // Extract keywords from headline
-  const keywords = extractKeywords(article.headline);
-
-  // Upsert learned keywords
-  for (const keyword of keywords) {
-    const { data: existing } = await supabase
-      .from('learned_category_keywords')
-      .select('id, weight')
-      .eq('keyword', keyword)
-      .eq('category', corrected_category)
-      .single();
-
-    if (existing) {
-      // Increment weight
-      await supabase
-        .from('learned_category_keywords')
-        .update({ weight: existing.weight + 1, updated_at: new Date().toISOString() })
-        .eq('id', existing.id);
-    } else {
-      // Insert new
-      await supabase
-        .from('learned_category_keywords')
-        .insert({ keyword, category: corrected_category, weight: 1 });
-    }
-  }
-
-  // Update the article's category (use service key to bypass RLS)
+  // Update article category FIRST (most important, user sees this)
   const serviceClient = getServiceClient();
   await serviceClient
     .from('articles')
     .update({ category: corrected_category })
     .eq('id', article_id);
 
-  return NextResponse.json({ ok: true, keywords_learned: keywords.length });
+  // Save correction record + learn keywords — all in parallel, don't block response
+  const keywords = extractKeywords(article.headline);
+
+  // Fire-and-forget: correction + keyword learning
+  Promise.all([
+    // Save correction
+    supabase.from('category_corrections').insert({
+      article_id,
+      original_category: article.category,
+      corrected_category,
+    }),
+    // Upsert learned keywords in parallel
+    ...keywords.map(async (keyword) => {
+      const { data: existing } = await supabase
+        .from('learned_category_keywords')
+        .select('id, weight')
+        .eq('keyword', keyword)
+        .eq('category', corrected_category)
+        .single();
+
+      if (existing) {
+        return supabase
+          .from('learned_category_keywords')
+          .update({ weight: existing.weight + 1, updated_at: new Date().toISOString() })
+          .eq('id', existing.id);
+      } else {
+        return supabase
+          .from('learned_category_keywords')
+          .insert({ keyword, category: corrected_category, weight: 1 });
+      }
+    }),
+  ]).catch(() => {}); // background — don't fail the response
+
+  return NextResponse.json({ ok: true });
 }
 
 export async function GET() {

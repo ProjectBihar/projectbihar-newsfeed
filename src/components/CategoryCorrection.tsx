@@ -12,7 +12,6 @@ interface Props {
 function CategoryCorrection({ articleId, currentCategory, onCorrected }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
-  const [loading, setLoading] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   // Click outside to close
@@ -35,24 +34,20 @@ function CategoryCorrection({ articleId, currentCategory, onCorrected }: Props) 
     }, 100);
   }, []);
 
-  const handleCorrect = useCallback(async (newCategory: string) => {
+  const handleCorrect = useCallback((newCategory: string) => {
     if (newCategory === currentCategory) {
       closeDropdown();
       return;
     }
-    setLoading(true);
-    try {
-      await fetch('/api/sentiment/correction', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ article_id: articleId, corrected_category: newCategory }),
-      });
-      onCorrected?.(newCategory);
-      closeDropdown();
-    } catch (err) {
-      console.error('Failed to correct category:', err);
-    }
-    setLoading(false);
+    // Optimistic update — UI responds instantly
+    onCorrected?.(newCategory);
+    closeDropdown();
+    // Fire API in background — don't await
+    fetch('/api/sentiment/correction', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ article_id: articleId, corrected_category: newCategory }),
+    }).catch((err) => console.error('Failed to correct category:', err));
   }, [articleId, currentCategory, onCorrected, closeDropdown]);
 
   const toggleDropdown = useCallback(() => {
@@ -97,7 +92,6 @@ function CategoryCorrection({ articleId, currentCategory, onCorrected }: Props) 
             <button
               key={cat.slug}
               onClick={() => handleCorrect(cat.slug)}
-              disabled={loading}
               className={`w-full text-left px-2 py-1 rounded text-[11px] font-medium transition-colors ${
                 cat.slug === currentCategory ? 'opacity-50' : 'hover:bg-[var(--border)]'
               }`}
