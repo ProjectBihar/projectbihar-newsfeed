@@ -30,7 +30,28 @@ export async function middleware(request: NextRequest) {
   );
 
   // Refresh session
-  await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const { pathname } = request.nextUrl;
+
+  // Allow auth routes, static assets, and API health
+  if (
+    pathname.startsWith('/auth') ||
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/api/health') ||
+    pathname === '/manifest.json' ||
+    pathname === '/sw.js' ||
+    pathname.startsWith('/icon-')
+  ) {
+    return supabaseResponse;
+  }
+
+  // Redirect unauthenticated users to login
+  if (!user) {
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = '/auth/login';
+    return NextResponse.redirect(loginUrl);
+  }
 
   return supabaseResponse;
 }
