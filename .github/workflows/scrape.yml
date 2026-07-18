@@ -2,8 +2,12 @@ name: Scrape Bihar News
 
 on:
   schedule:
-    - cron: '*/30 * * * *'   # Every 30 minutes
+    - cron: '0 * * * *'   # Every hour
   workflow_dispatch:           # Manual trigger button
+
+concurrency:
+  group: scrape
+  cancel-in-progress: false
 
 jobs:
   scrape:
@@ -45,6 +49,6 @@ jobs:
             Scraper run #${{ github.run_number }} failed.
 
             Branch: ${{ github.ref_name }}
-            Time: ${{ github.event.schedule || 'manual' }} at $(date -u +'%Y-%m-%d %H:%M UTC')
+            Time: ${{ github.event.schedule || 'manual' }}
 
             View logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

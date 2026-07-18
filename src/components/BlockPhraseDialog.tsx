@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase-client';
 
 interface BlockedPhrase {
@@ -13,7 +13,7 @@ export default function BlockPhraseDialog() {
   const [phrases, setPhrases] = useState<BlockedPhrase[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const supabase = createClient();
+  const supabase = useRef(createClient()).current;
 
   const loadPhrases = useCallback(async () => {
     const { data } = await supabase

@@ -6,7 +6,7 @@ import { extractPublishDate } from './date-handler';
 import { generateArticleId } from './dedup';
 import { classifyArticle, setLearnedKeywords } from './classifier';
 import { upsertArticle, getExistingIds, getBlockedPhrases, getLearnedKeywords, type ArticleRow } from './db';
-import { SEVEN_DAYS_MS, DELAY_BETWEEN_REQUESTS_MS } from './config';
+import { SEVEN_DAYS_MS, DELAY_BETWEEN_REQUESTS_MS, FETCH_TIMEOUT_MS, USER_AGENT } from './config';
 import { matchesAnyToken, matchesToken } from './token-match';
 import { isNoiseArticle } from './noise-filter';
 
@@ -353,11 +353,10 @@ async function discoverFromSource(
   try {
     const res = await fetch(source.listingUrl, {
       headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        'User-Agent': USER_AGENT,
         Accept: 'text/html,application/xhtml+xml',
       },
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       redirect: 'follow',
     });
 

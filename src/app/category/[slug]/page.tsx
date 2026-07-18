@@ -159,14 +159,16 @@ export default function CategoryPage() {
   const slug = params.slug as string;
   const category = slug as Category;
 
-  const initialTab: FeedTab = 'curated';
-
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [language, setLanguage] = useState<'all' | 'en' | 'hi'>('all');
   const [blockedPhrases, setBlockedPhrases] = useState<string[]>([]);
   const [predictions, setPredictions] = useState<Record<string, Prediction>>({});
-  const [feedTab, setFeedTab] = useState<FeedTab>(initialTab);
+  const [feedTab, setFeedTab] = useState<FeedTab>(() => {
+    if (typeof window === 'undefined') return 'curated';
+    const tab = new URLSearchParams(window.location.search).get('tab');
+    return tab === 'all' ? 'all' : 'curated';
+  });
   const [page, setPage] = useState(1);
   const [isMobile, setIsMobile] = useState(false);
   const predictionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -177,14 +179,6 @@ export default function CategoryPage() {
     check();
     window.addEventListener('resize', check);
     return () => window.removeEventListener('resize', check);
-  }, []);
-
-  // Sync feedTab from URL ?tab= param after mount (client-only to avoid hydration mismatch)
-  useEffect(() => {
-    const tab = new URLSearchParams(window.location.search).get('tab');
-    if (tab === 'all' || tab === 'curated') {
-      setFeedTab(tab);
-    }
   }, []);
 
   // Fetch ALL articles once (tab-independent) so badge counts are always accurate

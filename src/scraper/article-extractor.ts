@@ -1,5 +1,6 @@
 import * as cheerio from 'cheerio';
 import { extractPublishDate } from './date-handler';
+import { FETCH_TIMEOUT_MS, USER_AGENT } from './config';
 
 export interface ArticleData {
   headline: string;
@@ -18,12 +19,11 @@ export async function extractArticleData(
   try {
     const res = await fetch(url, {
       headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        'User-Agent': USER_AGENT,
         Accept: 'text/html,application/xhtml+xml',
         'Accept-Language': 'en-US,en;q=0.9,hi;q=0.8',
       },
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       redirect: 'follow',
     });
 

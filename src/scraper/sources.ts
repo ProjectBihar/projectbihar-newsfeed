@@ -71,7 +71,6 @@ export const ENGLISH_SOURCES: SourceConfig[] = [
     language: 'en',
     type: 'bihar-dedicated',
     listingUrl: 'https://www.ndtv.com/bihar',
-    rssUrl: 'https://feeds.feedburner.com/ndtvnews-latest',
     allowedCategories: biharDedicatedAll,
     selectors: { articleLink: 'a[href*="/india/"]' },
   },
@@ -175,14 +174,6 @@ export const ENGLISH_SOURCES: SourceConfig[] = [
     listingUrl: 'https://www.financialexpress.com/about/bihar',
     allowedCategories: biharDedicatedAll,
     selectors: { articleLink: 'a[href*="/article/"]' },
-  },
-  {
-    name: 'Moneycontrol',
-    language: 'en',
-    type: 'bihar-dedicated',
-    listingUrl: 'https://www.moneycontrol.com/news/india',
-    allowedCategories: biharDedicatedAll,
-    selectors: { articleLink: 'a[href*="/news/"]' },
   },
 ];
 

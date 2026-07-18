@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { createServerClient } from '@/lib/supabase-server';
+import { extractKeywords } from '@/lib/nlp-utils';
 import { NextRequest, NextResponse } from 'next/server';
 
 function getServiceClient() {
@@ -7,38 +8,6 @@ function getServiceClient() {
   const key = process.env.SUPABASE_SERVICE_KEY;
   if (!url || !key) throw new Error('Missing Supabase service key');
   return createClient(url, key);
-}
-
-const STOP_WORDS_EN = new Set([
-  'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
-  'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
-  'should', 'may', 'might', 'shall', 'can', 'to', 'of', 'in', 'for',
-  'on', 'with', 'at', 'by', 'from', 'as', 'into', 'through', 'during',
-  'before', 'after', 'above', 'below', 'between', 'out', 'off', 'over',
-  'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when',
-  'where', 'why', 'how', 'all', 'both', 'each', 'few', 'more', 'most',
-  'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same',
-  'so', 'than', 'too', 'very', 'just', 'about', 'also', 'and', 'but',
-  'or', 'if', 'its', 'it', 'he', 'she', 'they', 'them', 'his', 'her',
-  'this', 'that', 'these', 'those', 'what', 'which', 'who', 'whom',
-]);
-
-const STOP_WORDS_HI = new Set([
-  'के', 'की', 'का', 'में', 'से', 'को', 'पर', 'ने', 'और', 'यह', 'वह',
-  'एक', 'भी', 'था', 'थे', 'है', 'हैं', 'थी', 'गया', 'गई', 'हो', 'हुआ',
-  'हुई', 'कर', 'किया', 'इस', 'उस', 'अपने', 'अपनी', 'उन', 'इन', 'वे',
-  'ये', 'क्या', 'कैसे', 'क्यों', 'जब', 'तब', 'अब', 'तो', 'ही', 'भी',
-  'मे', 'पे', 'कि', 'जो', 'वो', 'इसमें', 'उसमें', 'यहां', 'वहां',
-]);
-
-function extractKeywords(headline: string): string[] {
-  const text = headline.toLowerCase();
-  const tokens = text.split(/[^a-z\u0900-\u097F]+/).filter(Boolean);
-  return tokens.filter((t) => {
-    if (t.length < 3) return false;
-    if (/[\u0900-\u097F]/.test(t)) return !STOP_WORDS_HI.has(t);
-    return !STOP_WORDS_EN.has(t);
-  });
 }
 
 const ALLOWED_CATEGORIES = ['economy', 'infrastructure', 'industry', 'agriculture', 'education', 'healthcare', 'environment', 'governance'];

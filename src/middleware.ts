@@ -61,7 +61,9 @@ export async function middleware(request: NextRequest) {
     || request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
     || 'unknown';
   if (!checkRateLimit(ip)) {
-    return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
+    const response = NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
+    response.headers.set('Retry-After', '60');
+    return response;
   }
 
   // Refresh session

@@ -144,7 +144,6 @@ function FeedTabSwitcher({ active, onChange, curatedCount, allCount, language, o
 export default function Home() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeCategory, setActiveCategory] = useState<Category | 'all'>('all');
   const [language, setLanguage] = useState<'all' | 'en' | 'hi'>('all');
   const [blockedPhrases, setBlockedPhrases] = useState<string[]>([]);
   const [predictions, setPredictions] = useState<Record<string, Prediction>>({});
@@ -222,8 +221,6 @@ export default function Home() {
     const result = articles.filter((a) => {
       // In curated tab, hide noise articles
       if (feedTab === 'curated' && a.is_noise) return false;
-      // Category filter only applies in curated tab
-      if (feedTab === 'curated' && activeCategory !== 'all' && a.category !== activeCategory) return false;
       if (language !== 'all' && a.language !== language) return false;
       if (feedTab === 'curated' && isBlockedArticle(a.headline, a.synopsis, blockedPhrases)) return false;
       return true;
@@ -231,14 +228,14 @@ export default function Home() {
 
     // Always sort by recency (newest first)
     return result.sort((a, b) => b.published_timestamp - a.published_timestamp);
-  }, [articles, activeCategory, language, blockedPhrases, feedTab]);
+  }, [articles, language, blockedPhrases, feedTab]);
 
   // Count totals — always accurate since articles is the full dataset
   const curatedCount = useMemo(() => articles.filter((a) => !a.is_noise).length, [articles]);
   const allCount = articles.length;
 
   // Reset page when filters change
-  useEffect(() => { setPage(1); }, [activeCategory, language, blockedPhrases, feedTab]);
+  useEffect(() => { setPage(1); }, [language, blockedPhrases, feedTab]);
 
   const perPage = isMobile ? MOBILE_PER_PAGE : DESKTOP_PER_PAGE;
   const totalPages = Math.ceil(filtered.length / perPage);
@@ -303,7 +300,7 @@ export default function Home() {
 
         {feedTab === 'curated' && (
           <CategoryTabs
-            active={activeCategory}
+            active="all"
             currentTab={feedTab}
           />
         )}

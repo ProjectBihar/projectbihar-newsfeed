@@ -33,7 +33,7 @@ const POLITICAL_NOISE_HI = [
   'आरोप', 'हमला', 'निशाना', 'शामिल', 'टिकट', 'गठबंधन',
   'चुनावी', 'रैली', 'नामांकन', 'प्रत्याशी', 'पार्टी',
   'विरोधी', 'सत्ताधारी', 'मतदान', 'चुनाव प्रचार',
-  'इस्तीफा', 'प्रवक्ता', 'अध्यक्ष', 'नेता', 'चुनाव',
+  'इस्तीफा', 'प्रवक्ता', 'अध्यक्ष', 'चुनाव',
   'उम्मीदवार', 'मतपत्र', 'बूथ', 'वोटर',
 ];
 
@@ -45,9 +45,9 @@ const CRIME_NOISE_EN = [
   'dacoity', 'extortion', 'kidnapping', 'ransom',
   'honour killing', 'domestic violence', 'assault case',
   'firing incident', 'open fire', 'gun battle', 'encounter',
-  'fugitive', 'shooter', 'police', 'custody', 'bail',
-  'court', 'verdict', 'sentenced', 'convicted', 'accused',
-  'crime', 'criminal', 'murder', 'killed', 'death',
+  'fugitive', 'shooter', 'custody', 'bail',
+  'verdict', 'sentenced', 'convicted', 'accused',
+  'crime', 'criminal', 'murder', 'killed',
   'liquor', 'drugs', 'smuggled', 'seized', 'confiscated',
 ];
 
