@@ -238,7 +238,7 @@ export default function CategoryPage() {
       if (feedTab === 'curated' && a.is_noise) return false;
       if (a.category !== category) return false;
       if (language !== 'all' && a.language !== language) return false;
-      if (isBlockedArticle(a.headline, a.synopsis, blockedPhrases)) return false;
+      if (feedTab === 'curated' && isBlockedArticle(a.headline, a.synopsis, blockedPhrases)) return false;
       return true;
     });
 
