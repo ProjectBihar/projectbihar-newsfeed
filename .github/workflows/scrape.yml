@@ -8,7 +8,7 @@ on:
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 15
 
     steps:
       - name: Checkout repository
@@ -24,7 +24,16 @@ jobs:
         run: npm ci
 
       - name: Run scraper
+        id: scrape
         run: npx tsx src/scraper/index.ts
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+
+      - name: Notify on failure
+        if: failure() || steps.scrape.outcome == 'failure'
+        run: |
+          WORKFLOW_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -s -H "Content-Type: application/json" \
+            -d "{\"content\": \"**Scraper Failed**\nRun: #${{ github.run_number }}\nBranch: ${{ github.ref_name }}\nTime: $(date -u +'%Y-%m-%d %H:%M UTC')\nWorkflow: [View Logs]($WORKFLOW_URL)\"}" \
+            "${{ secrets.DISCORD_WEBHOOK_URL }}"
