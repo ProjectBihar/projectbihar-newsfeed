@@ -30,10 +30,21 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
 
-      - name: Notify on failure
+      - name: Send failure email
         if: failure() || steps.scrape.outcome == 'failure'
-        run: |
-          WORKFLOW_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          curl -s -H "Content-Type: application/json" \
-            -d "{\"content\": \"**Scraper Failed**\nRun: #${{ github.run_number }}\nBranch: ${{ github.ref_name }}\nTime: $(date -u +'%Y-%m-%d %H:%M UTC')\nWorkflow: [View Logs]($WORKFLOW_URL)\"}" \
-            "${{ secrets.DISCORD_WEBHOOK_URL }}"
+        uses: dawidd6/action-send-email@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "Scraper Failed — Run #${{ github.run_number }}"
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: ${{ secrets.SMTP_USERNAME }}
+          body: |
+            Scraper run #${{ github.run_number }} failed.
+
+            Branch: ${{ github.ref_name }}
+            Time: ${{ github.event.schedule || 'manual' }} at $(date -u +'%Y-%m-%d %H:%M UTC')
+
+            View logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
