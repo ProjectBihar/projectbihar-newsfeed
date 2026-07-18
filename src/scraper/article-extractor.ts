@@ -5,6 +5,7 @@ import { FETCH_TIMEOUT_MS, USER_AGENT } from './config';
 export interface ArticleData {
   headline: string;
   synopsis: string;
+  dateline: string | null;
   published_timestamp: number | null;
 }
 
@@ -66,12 +67,25 @@ export async function extractArticleData(
       synopsis = firstP.slice(0, 300);
     }
 
+    // ── Dateline — structural location signal, independent of keyword scanning ──
+    const firstPara = $('article p, .article-body p, .story-content p, .content p')
+      .first()
+      .text()
+      .trim();
+
+    const datelineMatch =
+      firstPara.match(/^([A-Z][A-Za-z\s]{2,20})(?:\s*\([A-Z]+\))?\s*[:|]/) || // PATNA: / PATNA (PTI):
+      firstPara.match(/^([ऀ-ॿ\s]{2,20})[,।]/);                                // पटना, / पटना।
+
+    const dateline = datelineMatch?.[1]?.trim() ?? null;
+
     // ── Publish Date ──
     const published_timestamp = extractPublishDate(html);
 
     return {
       headline: headline.slice(0, 300),
       synopsis: synopsis.slice(0, 500),
+      dateline,
       published_timestamp,
     };
   } catch (err) {

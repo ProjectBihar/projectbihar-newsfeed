@@ -1,52 +1,55 @@
-import Parser from 'rss-parser';
-import type { SourceConfig } from './sources';
-import type { DiscoveredArticle } from './parser-html';
+/**
+ * RSS Trigger (The Discovery Layer)
+ *
+ * The scraper must NEVER start by blindly crawling HTML pages.
+ * It must only look at RSS feeds, which are highly structured XML.
+ */
 
-const rssParser = new Parser({
+import Parser from 'rss-parser';
+import type { RSSFeedItem } from './types';
+
+const parser = new Parser({
   timeout: 15_000,
   headers: {
     'User-Agent':
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
+    'Accept': 'application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8',
   },
 });
 
 /**
- * Discover articles from an RSS feed URL.
- * RSS gives us title, link, pubDate, and contentSnippet directly — most reliable.
+ * Fetch article URLs from RSS feeds.
+ * Only returns articles published within the last 24 hours.
+ *
+ * @param feedUrls - Array of RSS feed URLs (e.g., specific Bihar tags from NDTV, HT, etc.)
+ * @returns Array of recent RSS feed items with title, link, pubDate, summary
  */
-export async function discoverFromRSS(
-  source: SourceConfig
-): Promise<DiscoveredArticle[]> {
-  if (!source.rssUrl) return [];
+export async function fetchArticleUrlsFromRSS(
+  feedUrls: string[]
+): Promise<RSSFeedItem[]> {
+  const recentArticles: RSSFeedItem[] = [];
+  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-  try {
-    const feed = await rssParser.parseURL(source.rssUrl);
+  for (const url of feedUrls) {
+    try {
+      const feed = await parser.parseURL(url);
 
-    return (feed.items || [])
-      .filter((item) => item.link)
-      .map((item) => ({
-        url: item.link!,
-        headline: item.title || undefined,
-        pubDate: extractRSSDate(item) ?? undefined,
-      }))
-      .slice(0, 30);
-  } catch (err) {
-    console.error(`  RSS failed for ${source.name}:`, (err as Error).message);
-    return [];
+      for (const item of feed.items) {
+        const pubDate = item.pubDate ? new Date(item.pubDate) : new Date();
+
+        if (pubDate >= twentyFourHoursAgo && item.link) {
+          recentArticles.push({
+            title: item.title || '',
+            link: item.link,
+            pubDate: pubDate,
+            summary: item.contentSnippet || '',
+          });
+        }
+      }
+    } catch (error) {
+      console.error(`Failed to parse RSS feed: ${url}`, error);
+    }
   }
-}
 
-/**
- * Try to extract a date from RSS item metadata (for when the article page
- * doesn't have good date data).
- */
-export function extractRSSDate(item: { pubDate?: string; isoDate?: string }): number | null {
-  const dateStr = item.isoDate || item.pubDate;
-  if (!dateStr) return null;
-  try {
-    const d = new Date(dateStr);
-    return isNaN(d.getTime()) ? null : d.getTime();
-  } catch {
-    return null;
-  }
+  return recentArticles.slice(0, 10);
 }

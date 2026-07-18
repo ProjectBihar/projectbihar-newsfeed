@@ -1,152 +1,174 @@
-import type { Category } from './config';
-import type { SourceConfig } from './sources';
-import { matchesToken } from './token-match';
-
 /**
- * Refined keyword lists for 7 development categories.
- * All matching is token-bounded — "gst" inside "Gangster" does NOT match.
+ * Matrix Classifier
  *
- * Generic/ambiguous words removed: पुल, सड़क, कर, निवेश
- * These appear in too many contexts and cause false matches.
+ * Assigns articles to one of 8 strict development categories using a
+ * deterministic keyword-scoring matrix. Zero AI, zero external APIs.
+ *
+ * Scoring:
+ *   - Title match: +3 points per keyword hit
+ *   - Body match:  +1 point per occurrence
+ *
+ * Default category: "governance" (when no keywords match at all).
  */
-const CATEGORY_KEYWORDS: Record<Category, string[]> = {
-  economy: [
-    'gsdp', 'fiscal', 'dbt', 'budget', 'gdp', 'tax', 'revenue',
-    'da hike', 'pension', 'per capita', 'inflation', 'deficit',
-    'fiscal deficit', 'expenditure', 'treasury', 'rupee',
-    'income', 'poverty', 'funding', 'financing', 'excise',
-    'finance minister', 'economic growth', 'economic survey',
-    'gst', 'disbursement', 'subsidy', 'cash transfer',
-    'holding tax', 'property tax', 'revenue collection',
-    'अर्थव्यवस्था', 'राजस्व', 'बजट', 'अनुदान',
-    'पेंशन', 'राजकोष', 'वित्तीय', 'आर्थिक',
+
+// ═══════════════════════════════════════════════════════════════════
+// Noise Keywords — crime, politics, sensationalism
+// ═══════════════════════════════════════════════════════════════════
+
+const NOISE_KEYWORDS = [
+  // English crime/politics
+  'murder', 'arrested', 'scam', 'protest', 'riot', 'killed', 'shot dead',
+  'fraud', 'corruption', 'bribery', 'extortion', 'ransom', 'kidnapping',
+  'assault', 'robbery', 'theft', 'stolen', 'firing', 'attack',
+  // Hindi crime/politics
+  'मर्डर', 'हत्या', 'गिरफ्तार', 'रैली', 'प्रदर्शन', 'दंगा', 'लूट',
+  'भ्रष्टाचार', 'घूस', 'अपहरण', 'फायरिंग', 'हमला', 'चोरी', 'धोखाधड़ी',
+  'शराब', 'नशा', 'तस्करी', 'अपराध', 'आरोप', 'विवाद',
+];
+
+// ═══════════════════════════════════════════════════════════════════
+// Developmental Overrides — these trump noise flags
+// ═══════════════════════════════════════════════════════════════════
+
+const DEVELOPMENTAL_OVERRIDES = [
+  // English
+  'cabinet approves', 'inaugurated', 'fund allocation', 'foundation stone',
+  'budget allocated', 'scheme launched', 'policy approved', 'recruitment drive',
+  'sanctioned', 'commissioned', 'flagged off', 'dedicated to nation',
+  // Hindi
+  'शिलान्यास', 'उद्घाटन', 'मंजूरी', 'बजट', 'योजना', 'भर्ती',
+  'स्वीकृत', 'जारी', 'समर्पित', 'कैबिनेट',
+];
+
+// ═══════════════════════════════════════════════════════════════════
+// Category Matrix — English + Hindi keywords per category
+// ═══════════════════════════════════════════════════════════════════
+
+export const CATEGORY_MATRIX: Record<string, string[]> = {
+  governance: [
+    'cabinet', 'policy', 'police', 'court', 'high court',
+    'cm', 'minister', 'bpsc', 'सरकार', 'नीतीश', 'पुलिस',
   ],
   infrastructure: [
-    'bridge', 'expressway', 'metro', 'railway', 'highway',
-    'flyover', 'dam', 'canal', 'power grid',
-    'electricity', 'water supply', 'sewage', 'smart city',
-    'construction', 'transmission', 'nhai', 'national highway',
-    'railway station', 'airport', 'port', 'overbridge',
-    'urban development', 'capex', 'track', 'signal',
-    'शिलान्यास', 'निर्माण', 'बांध',
-    'नहर', 'विद्युत', 'रेलवे', 'हवाई अड्डा',
+    'bridge', 'highway', 'expressway', 'construction', 'road',
+    'railway', 'airport', 'पुल', 'सड़क', 'निर्माण',
   ],
-  industry: [
-    'factory', 'manufacturing', 'plant', 'industrial',
-    'corporate', 'mining', 'cement', 'steel',
-    'sugar', 'textile', 'assembly', 'special economic',
-    'sez', 'industrial park', 'industrial area', 'ethanol',
-    'semiconductor', 'biada', 'startup', 'msme', 'it hub',
-    'warehouse', 'supply chain', 'logistics',
-    'उद्योग', 'कारखाना', 'उद्योगिक',
+  economy: [
+    'budget', 'gst', 'tax', 'finance', 'gdp', 'economy',
+    'investment', 'बजट', 'टैक्स',
   ],
   agriculture: [
-    'farming', 'crop', 'harvest', 'irrigation', 'farmer',
-    'paddy', 'wheat', 'maize', 'lentil', 'fisheries',
-    'livestock', 'fertilizer', 'mandi', 'fpo', 'agri',
-    'cultivation', 'soil', 'rabi', 'kharif', 'makhana',
-    'litchi', 'banana', 'mango', 'food grain', 'crop loss',
-    'minimum support price', 'msp', 'animal husbandry',
-    'dairy', 'poultry', 'jeevika', 'crop insurance',
-    'किसान', 'कृषि', 'फसल', 'सिंचाई', 'मवेशी',
+    'farming', 'kisan', 'crop', 'irrigation', 'monsoon',
+    'makhana', 'flood', 'किसान', 'फसल', 'बाढ़',
   ],
   education: [
-    'school', 'college', 'university', 'exam', 'student',
-    'teacher', 'curriculum', 'scholarship', 'literacy',
-    'admission', 'result', 'board', 'cbse', 'bseb',
-    'syllabus', 'degree', 'enrollment', 'academic',
-    'lecture', 'professor', 'training', 'nta', 'ugc',
-    'patna university', 'magadh university', 'vidya',
-    'bpsc', 'upsc', 'kyp', 'recruitment',
-    'शिक्षा', 'शिक्षक', 'भर्ती', 'परीक्षा', 'परिणाम',
+    'school', 'university', 'bseb', 'teacher', 'students',
+    'exam', 'result', 'शिक्षा', 'शिक्षक', 'परीक्षा',
   ],
   healthcare: [
-    'hospital', 'doctor', 'disease', 'vaccination', 'nutrition',
-    'ambulance', 'phc', 'chc', 'medical', 'mental health',
-    'dengue', 'encephalitis', 'healthcare', 'clinic',
-    'medicine', 'patient', 'outbreak', 'epidemic', 'mortality',
-    'maternal', 'infant', 'aiims', 'pmch', 'nmch', 'igims',
-    'infection', 'vaccine drive', 'vaccination drive',
-    'unconscious', 'intoxication', 'overdose', 'poisoning',
-    'accident', 'injured', 'victim', 'treatment', 'ambulance',
-    'अस्पताल', 'स्वास्थ्य', 'टीकाकरण', 'दवा', 'मरीज',
-    'बेहोश', 'नशा', 'शिकार', 'घायल', 'इलाज',
+    'hospital', 'pmch', 'aiims', 'doctor', 'disease',
+    'medical', 'स्वास्थ्य', 'अस्पताल', 'मरीज',
+  ],
+  industry: [
+    'factory', 'plant', 'manufacturing', 'startup', 'business',
+    'उद्योग', 'कारखाना',
   ],
   environment: [
-    'pollution', 'climate', 'flood', 'floods', 'drought',
-    'forest', 'wildlife', 'river', 'ganga', 'conservation',
-    'emission', 'waste', 'renewable', 'solar', 'green',
-    'biodiversity', 'air quality', 'aqi', 'deforestation',
-    'wetland', 'afforestation', 'sand mining', 'poaching',
-    'flood warning', 'flood relief', 'embankment',
-    'waterlogging', 'clean energy', 'siltation',
-    'solar plant', 'solar panel', 'solar power',
-    'rain', 'rains', 'heavy rain', 'rainfall', 'monsoon',
-    'storm', 'thunderstorm', 'cyclone', 'heatwave', 'cold wave',
-    'drowning', 'submerge', 'submerged', 'inundate',
-    'बाढ़', 'सूखा', 'जल-जीवन-हरियाली', 'प्रदूषण',
-    'वन', 'नदी', 'सौर', 'जलवायु',
-    'बारिश', 'बरसात', 'मानसून', 'जलभराव', 'जलस्तर',
-    'तूफान', 'चक्रवात', 'ओलावृष्ट', 'गर्म लहर',
-    'डूब', 'डूबा', 'डूबने', 'पानी में बह', 'बाढ़ का पानी',
-    'बाढ़ प्रभावित', 'बाढ़ राहत', 'बाढ़ चेतावनी',
+    'pollution', 'weather', 'aqi', 'climate', 'forest',
+    'rain', 'मौसम', 'प्रदूषण',
   ],
-  governance: [
-    'governance', 'administration', 'policy', 'reform', 'transparency',
-    'accountability', 'public service', 'civil service', 'bureaucracy',
-    'IAS', 'IPS', 'department', 'ministry', 'secretariat', 'RTI',
-    'gram sabha', 'e-governance', 'digital india', 'public participation',
-    'municipal', 'panchayat', 'block', 'district administration',
-    'government scheme', 'welfare scheme', 'public welfare',
-    'शासन', 'प्रशासन', 'नीति', 'सुधार', 'पारदर्शिता', 'लोकसेवा',
-    'सरकारी विभाग', 'मंत्रालय', 'सचिवालय', 'ग्राम सभा',
-  ],
-  exclude: [],
 };
 
-// Learned keywords from user corrections (loaded from DB at startup)
-let learnedKeywords: { keyword: string; category: string; weight: number }[] = [];
-
-export function setLearnedKeywords(keywords: { keyword: string; category: string; weight: number }[]) {
-  learnedKeywords = keywords;
-}
+// ═══════════════════════════════════════════════════════════════════
+// Content Quality Evaluator (Noise Detection)
+// ═══════════════════════════════════════════════════════════════════
 
 /**
- * Token-bounded category classifier with learned keyword support.
- * Checks headline + synopsis against hardcoded + learned keywords.
- * Falls back to 'exclude' if no keywords match.
+ * Evaluate whether an article is noise (crime, politics, sensationalism).
+ *
+ * Returns true (is noise) if crime/politics keywords dominate.
+ * Returns false (not noise) if developmental overrides are present.
+ *
+ * @returns true if the article is noise, false if it's quality content
  */
-export function classifyArticle(
-  headline: string,
-  synopsis: string,
-  source: SourceConfig
-): Category {
-  const text = `${headline} ${synopsis}`;
+export function evaluateContentQuality(headline: string, bodyText: string): boolean {
+  const text = `${headline} ${bodyText}`.toLowerCase();
+
+  // Check for developmental overrides first — these trump noise
+  for (const override of DEVELOPMENTAL_OVERRIDES) {
+    if (text.includes(override)) {
+      return false;
+    }
+  }
+
+  // Count noise keyword occurrences
+  let noiseCount = 0;
+  for (const keyword of NOISE_KEYWORDS) {
+    let startPos = 0;
+    while (true) {
+      const idx = text.indexOf(keyword, startPos);
+      if (idx === -1) break;
+      noiseCount++;
+      startPos = idx + keyword.length;
+    }
+  }
+
+  // If 2+ noise keywords found, classify as noise
+  return noiseCount >= 2;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Core Classification Function
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Classify an article into one of 8 development categories.
+ *
+ * Scoring rules:
+ *   - Title match: +3 points per keyword found in title
+ *   - Body match:  +1 point per occurrence in body
+ *
+ * @returns Category string (all lowercase)
+ */
+export function classifyArticle(title: string, body: string): string {
+  const titleLower = title.toLowerCase();
+  const bodyLower = body.toLowerCase();
+
   const scores: Record<string, number> = {};
 
-  // Score against hardcoded keywords
-  for (const [cat, keywords] of Object.entries(CATEGORY_KEYWORDS) as [Category, string[]][]) {
-    if (cat === 'exclude') continue;
-    if (!source.allowedCategories.includes(cat)) continue;
-    let hits = 0;
-    for (const kw of keywords) {
-      if (matchesToken(text, kw)) hits++;
-    }
-    if (hits > 0) scores[cat] = hits;
+  for (const category of Object.keys(CATEGORY_MATRIX)) {
+    scores[category] = 0;
   }
 
-  // Score against learned keywords (from user corrections)
-  for (const lk of learnedKeywords) {
-    const cat = lk.category as Category;
-    if (cat === 'exclude') continue;
-    if (!source.allowedCategories.includes(cat)) continue;
-    if (matchesToken(text, lk.keyword)) {
-      scores[cat] = (scores[cat] || 0) + lk.weight;
+  for (const [category, keywords] of Object.entries(CATEGORY_MATRIX)) {
+    for (const keyword of keywords) {
+      if (titleLower.includes(keyword)) {
+        scores[category] += 3;
+      }
+
+      let startPos = 0;
+      while (true) {
+        const idx = bodyLower.indexOf(keyword, startPos);
+        if (idx === -1) break;
+        scores[category] += 1;
+        startPos = idx + keyword.length;
+      }
     }
   }
 
-  const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
-  if (sorted.length > 0) return sorted[0][0] as Category;
+  let maxScore = 0;
+  let winner = 'governance';
 
-  return 'exclude';
+  for (const [category, score] of Object.entries(scores)) {
+    if (score > maxScore) {
+      maxScore = score;
+      winner = category;
+    }
+  }
+
+  if (maxScore === 0) {
+    return 'governance';
+  }
+
+  return winner;
 }

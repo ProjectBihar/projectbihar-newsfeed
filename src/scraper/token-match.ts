@@ -2,8 +2,8 @@
  * Token-bounded boundary matching — NO substring matches.
  *
  * English: uses regex \b word-boundary so "gst" inside "Gangster" does NOT match.
- * Hindi/Devanagari: splits text on non-Devanagari chars, then exact-token comparison
- * so "कर" inside "विशेषकर" does NOT match.
+ * Hindi/Devanagari: bounded substring match — handles multi-word terms correctly
+ * (बिहार शरीफ, उत्तर प्रदेश) while still blocking partial matches like "कर" inside "विशेषकर".
  */
 
 function escapeRegex(s: string): string {
@@ -30,10 +30,12 @@ export function matchesToken(text: string, term: string): boolean {
   const lower = text.toLowerCase();
   const t = term.toLowerCase();
 
-  // Hindi/Devanagari terms: split text into Devanagari tokens, compare exactly
+  // Hindi/Devanagari terms: bounded substring match — handles multi-word
+  // terms correctly (बिहार शरीफ, उत्तर प्रदेश), while still blocking partial
+  // matches like "कर" inside "विशेषकर"
   if (/[\u0900-\u097F]/.test(t)) {
-    const tokens = lower.split(/[^ऀ-ॿ]+/).filter(Boolean);
-    return tokens.some((tok) => tok === t);
+    const pattern = new RegExp(`(^|[^ऀ-ॿ])${escapeRegex(t)}([^ऀ-ॿ]|$)`, 'i');
+    return pattern.test(lower);
   }
 
   // English terms: use cached word-boundary regex
