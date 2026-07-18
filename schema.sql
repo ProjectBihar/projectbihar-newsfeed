@@ -59,13 +59,14 @@ RETURNS SETOF articles AS $$
   ORDER BY a.published_timestamp DESC;
 $$ LANGUAGE sql STABLE;
 
--- 5. User sentiment ratings
+-- 5. User sentiment ratings (per-user, resets daily at midnight IST)
 CREATE TABLE IF NOT EXISTS user_sentiment (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES auth.users(id),
   article_id TEXT NOT NULL REFERENCES articles(id),
   sentiment TEXT NOT NULL CHECK (sentiment IN ('positive', 'negative', 'neutral')),
   rated_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(article_id)
+  UNIQUE(user_id, article_id)
 );
 
 ALTER TABLE user_sentiment ENABLE ROW LEVEL SECURITY;
