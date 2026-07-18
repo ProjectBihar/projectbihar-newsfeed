@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import NewsCard from '@/components/NewsCard';
 import CategoryTabs from '@/components/CategoryTabs';
@@ -103,9 +103,9 @@ function Pagination({ page, totalPages, onPageChange }: { page: number; totalPag
   );
 }
 
-function FeedTabSwitcher({ active, onChange, curatedCount, allCount }: { active: FeedTab; onChange: (tab: FeedTab) => void; curatedCount: number; allCount: number }) {
+function FeedTabSwitcher({ active, onChange, curatedCount, allCount, language, onLanguageChange }: { active: FeedTab; onChange: (tab: FeedTab) => void; curatedCount: number; allCount: number; language: 'all' | 'en' | 'hi'; onLanguageChange: (lang: 'all' | 'en' | 'hi') => void }) {
   return (
-    <div className="flex items-center gap-2 mb-4">
+    <div className="flex items-center gap-2 mb-4 flex-wrap">
       <button
         onClick={() => onChange('curated')}
         className={`px-4 py-2 rounded-lg text-[13px] font-medium transition-all ${
@@ -130,21 +130,43 @@ function FeedTabSwitcher({ active, onChange, curatedCount, allCount }: { active:
         All News
         <span className="ml-1.5 text-[11px] opacity-70">({allCount})</span>
       </button>
+
+      {/* Separator */}
+      <div className="w-px h-4 mx-0.5 flex-shrink-0" style={{ backgroundColor: 'var(--border)' }} />
+
+      {/* Language filter — always visible on both tabs */}
+      {(['all', 'en', 'hi'] as const).map((lang) => (
+        <button
+          key={lang}
+          onClick={() => onLanguageChange(lang)}
+          className={`px-3 py-1.5 rounded-full text-[13px] font-medium transition-all gpu-accel flex-shrink-0 ${
+            language === lang
+              ? 'bg-[var(--accent)] text-white shadow-sm'
+              : 'hover:bg-[var(--border)]'
+          }`}
+          style={language !== lang ? { color: 'var(--ink-secondary)' } : undefined}
+        >
+          {lang === 'all' ? 'All' : lang === 'en' ? 'EN' : 'HI'}
+        </button>
+      ))}
     </div>
   );
 }
 
 export default function CategoryPage() {
   const params = useParams();
+  const router = useRouter();
   const slug = params.slug as string;
   const category = slug as Category;
+
+  const initialTab: FeedTab = 'curated';
 
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [language, setLanguage] = useState<'all' | 'en' | 'hi'>('all');
   const [blockedPhrases, setBlockedPhrases] = useState<string[]>([]);
   const [predictions, setPredictions] = useState<Record<string, Prediction>>({});
-  const [feedTab, setFeedTab] = useState<FeedTab>('curated');
+  const [feedTab, setFeedTab] = useState<FeedTab>(initialTab);
   const [page, setPage] = useState(1);
   const [isMobile, setIsMobile] = useState(false);
   const predictionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -157,12 +179,20 @@ export default function CategoryPage() {
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  // Fetch articles based on active tab
-  const fetchArticles = useCallback(async (tab: FeedTab) => {
+  // Sync feedTab from URL ?tab= param after mount (client-only to avoid hydration mismatch)
+  useEffect(() => {
+    const tab = new URLSearchParams(window.location.search).get('tab');
+    if (tab === 'all' || tab === 'curated') {
+      setFeedTab(tab);
+    }
+  }, []);
+
+  // Fetch ALL articles once (tab-independent) so badge counts are always accurate
+  const fetchArticles = useCallback(async () => {
     setLoading(true);
     try {
       const [articlesRes, blockedRes] = await Promise.all([
-        fetch(`/api/articles?tab=${tab}`),
+        fetch('/api/articles?tab=all'),
         fetch('/api/block'),
       ]);
       const [articlesData, blockedData] = await Promise.all([
@@ -178,15 +208,16 @@ export default function CategoryPage() {
     }
   }, []);
 
-  // Initial fetch
+  // Initial fetch — always fetch the full dataset
   useEffect(() => {
-    fetchArticles(feedTab);
-  }, [feedTab, fetchArticles]);
+    fetchArticles();
+  }, [fetchArticles]);
 
   const handleTabChange = useCallback((tab: FeedTab) => {
     setFeedTab(tab);
     setPage(1);
-  }, []);
+    router.push(`/category/${slug}?tab=${tab}`, { scroll: false });
+  }, [slug, router]);
 
   // Debounced predictions fetch
   const schedulePredictions = useCallback((articleIds: string[]) => {
@@ -203,13 +234,25 @@ export default function CategoryPage() {
   }, []);
 
   const filtered = useMemo(() => {
-    return articles.filter((a) => {
+    const result = articles.filter((a) => {
       if (feedTab === 'curated' && a.is_noise) return false;
       if (a.category !== category) return false;
       if (language !== 'all' && a.language !== language) return false;
       if (isBlockedArticle(a.headline, a.synopsis, blockedPhrases)) return false;
       return true;
     });
+
+    // Curated tab: sort by sentiment score (positive → negative → neutral), then by recency
+    if (feedTab === 'curated') {
+      return [...result].sort((a, b) => {
+        const scoreA = a.user_rating === 'positive' ? 2 : a.user_rating === 'negative' ? -2 : 0;
+        const scoreB = b.user_rating === 'positive' ? 2 : b.user_rating === 'negative' ? -2 : 0;
+        if (scoreB !== scoreA) return scoreB - scoreA;
+        return b.published_timestamp - a.published_timestamp;
+      });
+    }
+
+    return result;
   }, [articles, category, language, blockedPhrases, feedTab]);
 
   useEffect(() => {
@@ -239,9 +282,9 @@ export default function CategoryPage() {
     );
   }, []);
 
-  const handleCategoryCorrected = useCallback((articleId: string, newCategory: string) => {
+  const handleCategoryCorrected = useCallback((articleId: string, update: { category?: string; is_noise?: boolean }) => {
     setArticles((prev) =>
-      prev.map((a) => (a.id === articleId ? { ...a, category: newCategory } : a))
+      prev.map((a) => (a.id === articleId ? { ...a, ...update } : a))
     );
   }, []);
 
@@ -254,8 +297,8 @@ export default function CategoryPage() {
   }, []);
 
   const handleRefresh = useCallback(() => {
-    fetchArticles(feedTab);
-  }, [feedTab, fetchArticles]);
+    fetchArticles();
+  }, [fetchArticles]);
 
   const scrollToTop = useCallback(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -283,13 +326,16 @@ export default function CategoryPage() {
           onChange={handleTabChange}
           curatedCount={curatedCount}
           allCount={allCount}
+          language={language}
+          onLanguageChange={setLanguage}
         />
 
-        <CategoryTabs
-          active={category}
-          language={language}
-          onLanguageChange={(lang) => setLanguage(lang)}
-        />
+        {feedTab === 'curated' && (
+          <CategoryTabs
+            active={category}
+            currentTab={feedTab}
+          />
+        )}
 
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mt-2 items-stretch">

@@ -14,6 +14,20 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Overall script timeout — kill after 15 minutes no matter what
+const SCRIPT_TIMEOUT_MS = 15 * 60 * 1000;
+const scriptTimer = setTimeout(() => {
+  console.error(`\n⏱ FATAL: Script exceeded ${SCRIPT_TIMEOUT_MS / 60_000} minute timeout. Forcing exit.`);
+  process.exit(1);
+}, SCRIPT_TIMEOUT_MS);
+scriptTimer.unref(); // don't keep the process alive just for this timer
+
+// Per-source timeout — kill any single source after 2 minutes
+const SOURCE_TIMEOUT_MS = 2 * 60 * 1000;
+
+// Concurrency limit for parallel source processing
+const SOURCE_CONCURRENCY = 5;
+
 // Non-Bihar states/cities — if these appear, the article is NOT about Bihar
 const NON_BIHAR_STATES = [
   // Major states
@@ -22,15 +36,41 @@ const NON_BIHAR_STATES = [
   'Uttarakhand', 'Himachal Pradesh', 'Jammu', 'Kashmir', 'Assam',
   'Kerala', 'Tamil Nadu', 'Karnataka', 'Andhra Pradesh', 'Telangana',
   'Goa', 'Sikkim', 'Meghalaya', 'Manipur', 'Mizoram', 'Nagaland',
-  'Tripura', 'Arunachal Pradesh', 'Chhattisgarh',
-  // Hindi names
+  'Tripura', 'Arunachal Pradesh',
+  // Hindi state names
   'गुजरात', 'महाराष्ट्र', 'राजस्थान', 'मध्य प्रदेश', 'उत्तर प्रदेश',
   'पश्चिम बंगाल', 'ओडिशा', 'झारखंड', 'छत्तीसगढ़', 'पंजाब', 'हरियाणा',
   'उत्तराखंड', 'हिमाचल प्रदेश', 'जम्मू', 'कश्मीर', 'असम',
   'केरल', 'तमिलनाडु', 'कर्नाटक', 'आंध्र प्रदेश', 'तेलंगाना',
   'गोवा', 'सिक्किम', 'मेघालय', 'मणिपुर', 'मिजोरम', 'नागालैंड',
-  'त्रिपुरा', 'अरुणाचल प्रदेश', 'छत्तीसगढ़',
-  // Major cities from other states
+  'त्रिपुरा', 'अरुणाचल प्रदेश',
+  // Uttar Pradesh cities (major + district HQs)
+  'Gorakhpur', 'Prayagraj', 'Allahabad', 'Noida', 'Ghaziabad', 'Meerut',
+  'Aligarh', 'Bareilly', 'Moradabad', 'Jhansi', 'Firozabad', 'Mathura',
+  'Ayodhya', 'Faizabad', 'Basti', 'Sitapur', 'Hardoi', 'Unnao',
+  'Rae Bareli', 'Amethi', 'Sultanpur', 'Azamgarh', 'Ballia', 'Mau',
+  'Deoria', 'Basti', 'Maharajganj', 'Kushinagar', 'Gonda', 'Bahraich',
+  'Shravasti', 'Balrampur', 'Pilibhit', 'Shahjahanpur', 'Budaun',
+  'Bijnor', 'Rampur', 'Sambhal', 'Amroha', 'Bulandshahr', 'Hapur',
+  'Etah', 'Kasganj', 'Mainpuri', 'Farrukhabad', 'Kannauj', 'Etawah',
+  'Auraiya', 'Kanpur', 'Hamirpur', 'Mahoba', 'Lalitpur', 'Orai',
+  'Chitrakoot', 'Pratapgarh', 'Mirzapur', 'Sonbhadra', 'Robertsganj',
+  'Chandauli', 'Varanasi', 'Gazipur', 'Jaunpur', 'Ghazipur',
+  'Agra', 'Aligarh', 'Firozabad', 'Hathras', 'Mathura',
+  // UP cities in Hindi
+  'गोरखपुर', 'प्रयागराज', 'इलाहाबाद', 'नोएडा', 'गाजियाबाद', 'मेरठ',
+  'अलीगढ़', 'बरेली', 'मुरादाबाद', 'झांसी', 'फिरोजाबाद', 'मथुरा',
+  'अयोध्या', 'फैजाबाद', 'बस्ती', 'सीतापुर', 'हरदोई', 'उन्नाव',
+  'रायबरेली', 'अमेठी', 'सुल्तानपुर', 'आजमगढ़', 'बलिया', 'मऊ',
+  'देवरिया', 'महारागंज', 'कुशीनगर', 'गोंडा', 'बहराइच',
+  'श्रावस्ती', 'बलरामपुर', 'पीलीभीत', 'शाहजहांपुर', 'बदायूं',
+  'बिजनौर', 'रामपुर', 'संभल', 'अमरोहा', 'बुलंदशहर', 'हापुड़',
+  'एटा', 'कासगंज', 'मैनपुरी', 'फर्रुखाबाद', 'कन्नौज', 'इटावा',
+  'औरैया', 'कानपुर', 'हमीरपुर', 'महोबा', 'ललितपुर', 'ओरई',
+  'चित्रकूट', 'प्रतापगढ़', 'मिर्जापुर', 'सोनभद्र', 'रॉबर्ट्सगंज',
+  'चंदौली', 'वाराणसी', 'गाजीपुर', 'जौनपुर', 'घाजीपुर',
+  'आगरा', 'हाथरस', 'मथुरा',
+  // Other major non-Bihar cities
   'Ahmedabad', 'Surat', 'Rajkot', 'Vadodara', 'Mumbai', 'Pune',
   'Nagpur', 'Jaipur', 'Lucknow', 'Kanpur', 'Agra', 'Varanasi',
   'Kolkata', 'Howrah', 'Bhopal', 'Indore', 'Raipur', 'Bilaspur',
@@ -39,7 +79,7 @@ const NON_BIHAR_STATES = [
   'Bhubaneswar', 'Cuttack', 'Ranchi', 'Jamshedpur', 'Guwahati',
   'Panaji', 'Gangtok', 'Shillong', 'Imphal', 'Aizawl', 'Kohima',
   'Agartala', 'Itanagar',
-  // Hindi city names
+  // Other major cities in Hindi
   'अहमदाबाद', 'सूरत', 'राजकोट', 'वडोदरा', 'मुंबई', 'पुणे',
   'नागपुर', 'जयपुर', 'लखनऊ', 'कानपुर', 'आगरा', 'वाराणसी',
   'कोलकाता', 'हावड़ा', 'भोपाल', 'इंदौर', 'रायपुर', 'बिलासपुर',
@@ -92,22 +132,85 @@ export const BIHAR_GEO_DICTIONARY = [
   'छठ', 'लिट्टी चोखा', 'बोधगया', 'राजगीर', 'पावापुरी',
 ];
 
+// Strong Bihar signals — state name must appear for a positive match
+const BIHAR_STATE_NAMES = [
+  'Bihar', 'बिहार', 'बिहारी',
+];
+
+// Bihar district/city names — strong positive signal when combined with state context
+const BIHAR_DISTRICTS = [
+  'Patna', 'Gaya', 'Muzaffarpur', 'Bhagalpur', 'Darbhanga', 'Purnia',
+  'Munger', 'Begusarai', 'Nalanda', 'Vaishali', 'Saran', 'Chhapra',
+  'Siwan', 'Gopalganj', 'West Champaran', 'East Champaran', 'Motihari',
+  'Sitamarhi', 'Sheohar', 'Madhubani', 'Supaul', 'Araria', 'Kishanganj',
+  'Katihar', 'Khagaria', 'Samastipur', 'Lakhisarai', 'Sheikhpura',
+  'Nawada', 'Jamui', 'Aurangabad', 'Rohtas', 'Sasaram', 'Kaimur',
+  'Bhabua', 'Bhojpur', 'Arrah', 'Buxar', 'Banka', 'Madhepura',
+  'Saharsa', 'Arwal', 'Jehanabad', 'Bihar Sharif', 'Hajipur',
+  // Hindi district names
+  'पटना', 'गया', 'मुजफ्फरपुर', 'भागलपुर', 'दरभंगा', 'पूर्णिया',
+  'मुंगेर', 'बेगूसराय', 'नालंदा', 'वैशाली', 'सारण', 'छपरा',
+  'सिवान', 'गोपालगंज', 'पश्चिम चंपारण', 'पूर्वी चंपारण', 'मोतिहारी',
+  'सीतामढ़ी', 'शिवहर', 'मधुबनी', 'सुपौल', 'अररिया', 'किशनगंज',
+  'कटिहार', 'खगड़िया', 'समस्तीपुर', 'लखीसराय', 'शेखपुरा',
+  'नवादा', 'जमुई', 'औरंगाबाद', 'रोहतास', 'सासाराम', 'कैमूर',
+  'भभुआ', 'भोजपुर', 'आरा', 'बक्सर', 'बांका', 'मधेपुरा',
+  'सहरसा', 'अरवल', 'जहानाबाद', 'बिहार शरीफ', 'हाजीपुर',
+];
+
+// Non-Bihar cities that appear in Bihar-dedicated source feeds (false positives)
+// These override the Bihar keyword match — if ANY of these is the primary subject, reject
+const NON_BIHAR_FALSE_POSITIVE_CITIES = [
+  'Gorakhpur', 'Prayagraj', 'Allahabad', 'Lucknow', 'Varanasi', 'Kanpur',
+  'Agra', 'Noida', 'Ghaziabad', 'Meerut', 'Bareilly', 'Aligarh',
+  'Jhansi', 'Mathura', 'Ayodhya', 'Faizabad', 'Deoria', 'Basti',
+  'Azamgarh', 'Ballia', 'Mau', 'Mirzapur', 'Sonbhadra', 'Chandauli',
+  'Jaunpur', 'Ghazipur', 'Gazipur', 'Maharajganj', 'Kushinagar',
+  'Gonda', 'Bahraich', 'Shravasti', 'Balrampur', 'Pilibhit',
+  'Shahjahanpur', 'Budaun', 'Bijnor', 'Rampur', 'Sambhal', 'Amroha',
+  'Bulandshahr', 'Hapur', 'Etah', 'Kasganj', 'Mainpuri', 'Farrukhabad',
+  'Kannauj', 'Etawah', 'Auraiya', 'Hamirpur', 'Mahoba', 'Lalitpur',
+  'Chitrakoot', 'Pratapgarh', 'Rae Bareli', 'Amethi', 'Sitapur',
+  'Hardoi', 'Unnao', 'Firozabad',
+  // Hindi
+  'गोरखपुर', 'प्रयागराज', 'इलाहाबाद', 'लखनऊ', 'वाराणसी', 'कानपुर',
+  'आगरा', 'नोएडा', 'गाजियाबाद', 'मेरठ', 'बरेली', 'अलीगढ़',
+  'झांसी', 'मथुरा', 'अयोध्या', 'फैजाबाद', 'देवरिया', 'बस्ती',
+  'आजमगढ़', 'बलिया', 'मऊ', 'मिर्जापुर', 'सोनभद्र', 'चंदौली',
+  'जौनपुर', 'घाजीपुर', 'गाजीपुर', 'महारागंज', 'कुशीनगर',
+  'गोंडा', 'बहराइच', 'श्रावस्ती', 'बलरामपुर', 'पीलीभीत',
+  'शाहजहांपुर', 'बदायूं', 'बिजनौर', 'रामपुर', 'संभल', 'अमरोहा',
+  'बुलंदशहर', 'हापुड़', 'एटा', 'कासगंज', 'मैनपुरी', 'फर्रुखाबाद',
+  'कन्नौज', 'इटावा', 'औरैया', 'हमीरपुर', 'महोबा', 'ललितपुर',
+  'ओरई', 'चित्रकूट', 'प्रतापगढ़', 'रॉबर्ट्सगंज',
+];
+
 function isBiharRelevant(headline: string, synopsis: string): boolean {
   const text = `${headline} ${synopsis}`;
 
-  // Hard block: if a non-Bihar state/city is mentioned, drop it
+  // Hard block: non-Bihar state/city mentioned → reject
   if (matchesAnyToken(text, NON_BIHAR_STATES)) {
     return false;
   }
 
-  return matchesAnyToken(text, BIHAR_GEO_DICTIONARY);
+  // Hard block: known false-positive cities from Bihar-dedicated feeds → reject
+  if (matchesAnyToken(text, NON_BIHAR_FALSE_POSITIVE_CITIES)) {
+    return false;
+  }
+
+  // Positive match required: must mention "Bihar" state name OR a Bihar district/city
+  const hasStateName = matchesAnyToken(text, BIHAR_STATE_NAMES);
+  const hasDistrict = matchesAnyToken(text, BIHAR_DISTRICTS);
+
+  return hasStateName || hasDistrict;
 }
 
 async function scrapeSource(source: SourceConfig): Promise<number> {
-  console.log(`\n▶ Scraping: ${source.name} (${source.language})`);
+  const startTime = Date.now();
+  console.log(`\n▶ [START] ${source.name} (${source.language})`);
 
   let discovered = await discoverFromSource(source);
-  console.log(`  Found ${discovered.length} article links`);
+  console.log(`  [DISCOVER] ${source.name}: found ${discovered.length} article links`);
 
   if (discovered.length === 0) return 0;
 
@@ -128,7 +231,7 @@ async function scrapeSource(source: SourceConfig): Promise<number> {
   const allIds = discovered.map((a) => generateArticleId(a.url));
   const existingIds = await getExistingIds(allIds);
   const newCount = discovered.filter((_, i) => !existingIds.has(allIds[i])).length;
-  console.log(`  ${newCount} new, ${discovered.length - newCount} already in DB`);
+  console.log(`  [DEDUP] ${source.name}: ${newCount} new, ${discovered.length - newCount} already in DB`);
 
   let stored = 0;
 
@@ -208,7 +311,6 @@ async function scrapeSource(source: SourceConfig): Promise<number> {
 
       await upsertArticle(row);
       stored++;
-      console.log(`  ✓ [${category}] ${data.headline.slice(0, 70)}`);
     } catch (err) {
       console.error(`  ✗ Error: ${(err as Error).message}`);
     }
@@ -216,7 +318,8 @@ async function scrapeSource(source: SourceConfig): Promise<number> {
     await sleep(DELAY_BETWEEN_REQUESTS_MS);
   }
 
-  console.log(`  → Stored ${stored} articles from ${source.name}`);
+  const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+  console.log(`  → [DONE] ${source.name}: ${stored} articles stored (${elapsed}s)`);
   return stored;
 }
 
@@ -255,31 +358,77 @@ async function discoverFromSource(
   }
 }
 
+/**
+ * Run a function with a timeout. Rejects if it takes too long.
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`Timeout after ${ms}ms: ${label}`)), ms)
+    ),
+  ]);
+}
+
+/**
+ * Process items in parallel with a concurrency limit.
+ */
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = [];
+  let index = 0;
+
+  async function worker() {
+    while (index < items.length) {
+      const i = index++;
+      results[i] = await fn(items[i]);
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(concurrency, items.length) }, () => worker());
+  await Promise.all(workers);
+  return results;
+}
+
 // ── Main entry point ──
 async function main() {
+  const startTime = Date.now();
   console.log('═══════════════════════════════════════════');
   console.log(`Bihar News Scraper — ${new Date().toISOString()}`);
+  console.log(`Sources: ${ALL_SOURCES.length} | Concurrency: ${SOURCE_CONCURRENCY}`);
+  console.log(`Timeouts: script=${SCRIPT_TIMEOUT_MS / 60_000}min, source=${SOURCE_TIMEOUT_MS / 60_000}min`);
   console.log('═══════════════════════════════════════════');
 
-  let totalStored = 0;
+  const results = await mapWithConcurrency(ALL_SOURCES, SOURCE_CONCURRENCY, (source) =>
+    withTimeout(
+      scrapeSource(source).catch((err) => {
+        console.error(`\n✗ [FAIL] ${source.name}: ${(err as Error).message}`);
+        return 0;
+      }),
+      SOURCE_TIMEOUT_MS,
+      `source: ${source.name}`
+    ).catch((err) => {
+      console.error(`\n✗ [TIMEOUT] ${source.name}: ${(err as Error).message}`);
+      return 0;
+    })
+  );
 
-  for (const source of ALL_SOURCES) {
-    try {
-      const count = await scrapeSource(source);
-      totalStored += count;
-    } catch (err) {
-      console.error(`\n✗ FAILED: ${source.name} — ${(err as Error).message}`);
-    }
-    // Delay between sources to be polite
-    await sleep(500);
-  }
+  const totalStored = results.reduce((sum, n) => sum + n, 0);
+  const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
   console.log('\n═══════════════════════════════════════════');
   console.log(`Done! Total new articles stored: ${totalStored}`);
+  console.log(`Elapsed: ${elapsed}s`);
   console.log('═══════════════════════════════════════════');
+
+  clearTimeout(scriptTimer);
 }
 
 main().catch((err) => {
   console.error('Fatal error:', err);
+  clearTimeout(scriptTimer);
   process.exit(1);
 });

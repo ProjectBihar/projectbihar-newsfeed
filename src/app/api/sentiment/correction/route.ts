@@ -51,8 +51,34 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
   }
 
-  const { article_id, corrected_category } = await req.json();
+  const { article_id, corrected_category, is_noise } = await req.json();
 
+  // Marking as noise — only flip is_noise, preserve category
+  if (is_noise === true) {
+    if (!article_id) {
+      return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
+    }
+
+    const { data: article } = await supabase
+      .from('articles')
+      .select('id')
+      .eq('id', article_id)
+      .single();
+
+    if (!article) {
+      return NextResponse.json({ error: 'Article not found' }, { status: 404 });
+    }
+
+    const serviceClient = getServiceClient();
+    await serviceClient
+      .from('articles')
+      .update({ is_noise: true })
+      .eq('id', article_id);
+
+    return NextResponse.json({ ok: true });
+  }
+
+  // Category correction — set category + clear is_noise
   if (!article_id || !corrected_category || !ALLOWED_CATEGORIES.includes(corrected_category)) {
     return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
   }
@@ -68,11 +94,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Article not found' }, { status: 404 });
   }
 
-  // Update article category FIRST (most important, user sees this)
+  // Update article category + clear is_noise (most important, user sees this)
   const serviceClient = getServiceClient();
   await serviceClient
     .from('articles')
-    .update({ category: corrected_category })
+    .update({ category: corrected_category, is_noise: false })
     .eq('id', article_id);
 
   // Save correction record + learn keywords — all in parallel, don't block response

@@ -39,7 +39,7 @@ interface Props {
   article: Article;
   prediction?: { sentiment: string; confidence: number };
   onRated?: (rating: string | null) => void;
-  onCategoryCorrected?: (articleId: string, newCategory: string) => void;
+  onCategoryCorrected?: (articleId: string, update: { category?: string; is_noise?: boolean }) => void;
 }
 
 function NewsCard({ article, prediction, onRated, onCategoryCorrected }: Props) {
@@ -80,13 +80,12 @@ function NewsCard({ article, prediction, onRated, onCategoryCorrected }: Props) 
             noise
           </span>
         )}
-        {!article.is_noise && article.category && (
-          <CategoryCorrection
-            articleId={article.id}
-            currentCategory={article.category}
-            onCorrected={(newCat) => onCategoryCorrected?.(article.id, newCat)}
-          />
-        )}
+        <CategoryCorrection
+          articleId={article.id}
+          currentCategory={article.category ?? ''}
+          isNoise={article.is_noise}
+          onCorrected={(update) => onCategoryCorrected?.(article.id, update)}
+        />
       </div>
 
       {/* Headline */}

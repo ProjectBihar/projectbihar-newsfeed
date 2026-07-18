@@ -1,30 +1,54 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
+import { createPortal } from 'react-dom';
 import { CATEGORIES } from '@/lib/constants';
 
 interface Props {
   articleId: string;
   currentCategory: string;
-  onCorrected?: (newCategory: string) => void;
+  isNoise?: boolean;
+  onCorrected?: (update: { category?: string; is_noise?: boolean }) => void;
 }
 
-function CategoryCorrection({ articleId, currentCategory, onCorrected }: Props) {
+function CategoryCorrection({ articleId, currentCategory, isNoise, onCorrected }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const updatePosition = useCallback(() => {
+    if (!wrapperRef.current) return;
+    const rect = wrapperRef.current.getBoundingClientRect();
+    setMenuPos({
+      top: rect.bottom + window.scrollY + 4,
+      left: rect.left + window.scrollX,
+    });
+  }, []);
 
   // Click outside to close
   useEffect(() => {
     if (!isOpen) return;
+    updatePosition();
     const handleClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
+      if (
+        wrapperRef.current && !wrapperRef.current.contains(e.target as Node) &&
+        menuRef.current && !menuRef.current.contains(e.target as Node)
+      ) {
         closeDropdown();
       }
     };
+    const handleScroll = () => updatePosition();
     document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [isOpen]);
+    window.addEventListener('scroll', handleScroll, true);
+    window.addEventListener('resize', handleScroll);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      window.removeEventListener('scroll', handleScroll, true);
+      window.removeEventListener('resize', handleScroll);
+    };
+  }, [isOpen, updatePosition]);
 
   const closeDropdown = useCallback(() => {
     setIsClosing(true);
@@ -35,20 +59,32 @@ function CategoryCorrection({ articleId, currentCategory, onCorrected }: Props) 
   }, []);
 
   const handleCorrect = useCallback((newCategory: string) => {
-    if (newCategory === currentCategory) {
+    if (newCategory === currentCategory && !isNoise) {
       closeDropdown();
       return;
     }
-    // Optimistic update — UI responds instantly
-    onCorrected?.(newCategory);
+    onCorrected?.({ category: newCategory, is_noise: false });
     closeDropdown();
-    // Fire API in background — don't await
     fetch('/api/sentiment/correction', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ article_id: articleId, corrected_category: newCategory }),
+      body: JSON.stringify({ article_id: articleId, corrected_category: newCategory, is_noise: false }),
     }).catch((err) => console.error('Failed to correct category:', err));
-  }, [articleId, currentCategory, onCorrected, closeDropdown]);
+  }, [articleId, currentCategory, isNoise, onCorrected, closeDropdown]);
+
+  const handleMarkNoise = useCallback(() => {
+    if (isNoise) {
+      closeDropdown();
+      return;
+    }
+    onCorrected?.({ is_noise: true });
+    closeDropdown();
+    fetch('/api/sentiment/correction', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ article_id: articleId, is_noise: true }),
+    }).catch((err) => console.error('Failed to mark noise:', err));
+  }, [articleId, isNoise, onCorrected, closeDropdown]);
 
   const toggleDropdown = useCallback(() => {
     if (isOpen) {
@@ -59,8 +95,74 @@ function CategoryCorrection({ articleId, currentCategory, onCorrected }: Props) 
     }
   }, [isOpen, closeDropdown]);
 
+  const dropdown = isOpen ? createPortal(
+    <div
+      ref={menuRef}
+      className="p-2 gpu-accel"
+      style={{
+        position: 'absolute',
+        width: '140px',
+        top: menuPos.top,
+        left: menuPos.left,
+        zIndex: 9999,
+        background: 'var(--bg)',
+        backdropFilter: 'blur(16px)',
+        border: '1px solid var(--card-border)',
+        borderRadius: 12,
+        boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+        opacity: isClosing ? 0 : 1,
+        transform: isClosing ? 'translateY(-4px)' : 'translateY(0)',
+        transition: 'opacity 100ms ease-out, transform 100ms ease-out',
+      }}
+    >
+      <div className="text-[10px] font-medium uppercase tracking-wide mb-1.5" style={{ color: 'var(--muted)' }}>
+        Move to:
+      </div>
+      {/* Noise option */}
+      <button
+        onClick={handleMarkNoise}
+        className={`w-full text-left px-2 py-1 rounded text-[11px] font-medium transition-colors ${
+          isNoise ? 'opacity-50' : 'hover:bg-[var(--border)]'
+        }`}
+        style={{ color: 'var(--ink)' }}
+      >
+        <span
+          className="inline-block w-2 h-2 rounded-full mr-1.5"
+          style={{ backgroundColor: 'rgba(255,59,48,0.7)' }}
+        />
+        Noise
+      </button>
+      {/* Separator */}
+      <div className="w-full my-1" style={{ borderTop: '1px solid var(--border)' }} />
+      {CATEGORIES.map((cat) => (
+        <button
+          key={cat.slug}
+          onClick={() => handleCorrect(cat.slug)}
+          className={`w-full text-left px-2 py-1 rounded text-[11px] font-medium transition-colors ${
+            cat.slug === currentCategory ? 'opacity-50' : 'hover:bg-[var(--border)]'
+          }`}
+          style={{ color: 'var(--ink)' }}
+        >
+          <span
+            className="inline-block w-2 h-2 rounded-full mr-1.5"
+            style={{ backgroundColor: cat.color }}
+          />
+          {cat.label}
+        </button>
+      ))}
+      <button
+        onClick={closeDropdown}
+        className="w-full text-left px-2 py-1 rounded text-[11px] mt-1 hover:bg-[var(--border)]"
+        style={{ color: 'var(--muted)' }}
+      >
+        Cancel
+      </button>
+    </div>,
+    document.body
+  ) : null;
+
   return (
-    <div className="relative" ref={ref}>
+    <div ref={wrapperRef} className="relative">
       {/* Edit button */}
       <button
         onClick={toggleDropdown}
@@ -74,45 +176,7 @@ function CategoryCorrection({ articleId, currentCategory, onCorrected }: Props) 
         </svg>
       </button>
 
-      {/* Category dropdown */}
-      {isOpen && (
-        <div
-          className="absolute top-full left-0 mt-1 z-50 glass-card p-2 min-w-[140px] gpu-accel"
-          style={{
-            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-            opacity: isClosing ? 0 : 1,
-            transform: isClosing ? 'translateY(-4px)' : 'translateY(0)',
-            transition: 'opacity 100ms ease-out, transform 100ms ease-out',
-          }}
-        >
-          <div className="text-[10px] font-medium uppercase tracking-wide mb-1.5" style={{ color: 'var(--muted)' }}>
-            Move to:
-          </div>
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat.slug}
-              onClick={() => handleCorrect(cat.slug)}
-              className={`w-full text-left px-2 py-1 rounded text-[11px] font-medium transition-colors ${
-                cat.slug === currentCategory ? 'opacity-50' : 'hover:bg-[var(--border)]'
-              }`}
-              style={{ color: 'var(--ink)' }}
-            >
-              <span
-                className="inline-block w-2 h-2 rounded-full mr-1.5"
-                style={{ backgroundColor: cat.color }}
-              />
-              {cat.label}
-            </button>
-          ))}
-          <button
-            onClick={closeDropdown}
-            className="w-full text-left px-2 py-1 rounded text-[11px] mt-1 hover:bg-[var(--border)]"
-            style={{ color: 'var(--muted)' }}
-          >
-            Cancel
-          </button>
-        </div>
-      )}
+      {dropdown}
     </div>
   );
 }

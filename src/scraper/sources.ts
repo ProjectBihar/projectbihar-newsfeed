@@ -25,6 +25,7 @@ const biharDedicatedAll: Category[] = [
   'education',
   'healthcare',
   'environment',
+  'governance',
 ];
 
 // ── ENGLISH_BIHAR_SEEDS: pre-curated Bihar pages — all auto-pass the geo-fence ──

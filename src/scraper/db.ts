@@ -8,6 +8,8 @@ if (typeof globalThis.WebSocket === 'undefined') {
   (globalThis as any).WebSocket = WebSocket;
 }
 
+const DB_QUERY_TIMEOUT_MS = 10_000;
+
 // Load .env.local for standalone scraper execution (tsx doesn't auto-load it)
 function loadEnvFile() {
   try {
@@ -76,11 +78,14 @@ export interface ArticleRow {
  */
 export async function upsertArticle(article: ArticleRow): Promise<void> {
   const supabase = getSupabaseClient();
-  const { error } = await supabase.from('articles').upsert(article, {
-    onConflict: 'id',
-  });
-  if (error) {
-    console.error(`  DB upsert error for ${article.id}:`, error.message);
+  const result = await Promise.race([
+    supabase.from('articles').upsert(article, { onConflict: 'id' }),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`DB upsert timeout: ${article.id}`)), DB_QUERY_TIMEOUT_MS)
+    ),
+  ]);
+  if (result.error) {
+    console.error(`  DB upsert error for ${article.id}:`, result.error.message);
   }
 }
 
@@ -94,12 +99,14 @@ export async function getExistingIds(ids: string[]): Promise<Set<string>> {
   // Query in batches of 50 (Supabase 'in' limit)
   for (let i = 0; i < ids.length; i += 50) {
     const batch = ids.slice(i, i + 50);
-    const { data } = await supabase
-      .from('articles')
-      .select('id')
-      .in('id', batch);
-    if (data) {
-      for (const row of data) existing.add(row.id);
+    const result = await Promise.race([
+      supabase.from('articles').select('id').in('id', batch),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`DB dedup timeout: batch ${Math.floor(i / 50)}`)), DB_QUERY_TIMEOUT_MS)
+      ),
+    ]);
+    if (result.data) {
+      for (const row of result.data) existing.add(row.id);
     }
   }
 
@@ -111,8 +118,11 @@ export async function getExistingIds(ids: string[]): Promise<Set<string>> {
  */
 export async function getBlockedPhrases(): Promise<string[]> {
   const supabase = getSupabaseClient();
-  const { data } = await supabase
-    .from('blocked_phrases')
-    .select('phrase');
-  return (data || []).map((r: { phrase: string }) => r.phrase);
+  const result = await Promise.race([
+    supabase.from('blocked_phrases').select('phrase'),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('DB getBlockedPhrases timeout')), DB_QUERY_TIMEOUT_MS)
+    ),
+  ]);
+  return (result.data || []).map((r: { phrase: string }) => r.phrase);
 }

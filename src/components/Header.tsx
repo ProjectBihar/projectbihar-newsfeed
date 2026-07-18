@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase-client';
 import type { User } from '@supabase/supabase-js';
@@ -21,6 +21,8 @@ export default function Header({ totalArticles, onRefresh }: Props) {
   const [counts, setCounts] = useState<SentimentCounts>({ positive: 0, negative: 0, neutral: 0 });
   const [refreshing, setRefreshing] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
 
   useEffect(() => {
@@ -72,6 +74,18 @@ export default function Header({ totalArticles, onRefresh }: Props) {
       return next;
     });
   }, []);
+
+  // Close user menu on outside click
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [userMenuOpen]);
 
   const handleRefresh = useCallback(() => {
     if (!onRefresh || refreshing) return;
@@ -143,20 +157,44 @@ export default function Header({ totalArticles, onRefresh }: Props) {
 
               {/* Auth button */}
               {user ? (
-                <Link
-                  href="/auth/logout"
-                  className="glass-pill flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium"
-                  style={{ color: 'var(--ink-secondary)' }}
-                  title={user.email || 'Account'}
-                >
-                  <span
-                    className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
-                    style={{ backgroundColor: 'var(--accent)' }}
+                <div ref={userMenuRef} className="relative">
+                  <button
+                    onClick={() => setUserMenuOpen(!userMenuOpen)}
+                    className="glass-pill flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium"
+                    style={{ color: 'var(--ink-secondary)' }}
+                    title={user.email || 'Account'}
                   >
-                    {userInitial}
-                  </span>
-                  <span className="hidden lg:inline">Logout</span>
-                </Link>
+                    <span
+                      className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
+                      style={{ backgroundColor: 'var(--accent)' }}
+                    >
+                      {userInitial}
+                    </span>
+                  </button>
+                  {userMenuOpen && (
+                    <div
+                      className="absolute right-0 top-full mt-1 py-1 rounded-lg min-w-[160px]"
+                      style={{
+                        background: 'var(--bg)',
+                        border: '1px solid var(--card-border)',
+                        boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+                        zIndex: 50,
+                      }}
+                    >
+                      <div className="px-3 py-1.5 text-[11px] truncate" style={{ color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
+                        {user.email}
+                      </div>
+                      <Link
+                        href="/auth/logout"
+                        className="block px-3 py-1.5 text-[12px] font-medium hover:bg-[var(--border)] transition-colors"
+                        style={{ color: 'var(--ink)' }}
+                        onClick={() => setUserMenuOpen(false)}
+                      >
+                        Logout
+                      </Link>
+                    </div>
+                  )}
+                </div>
               ) : (
                 <Link
                   href="/auth/login"
@@ -179,19 +217,44 @@ export default function Header({ totalArticles, onRefresh }: Props) {
             </h1>
             <div className="flex items-center gap-1.5">
               {user ? (
-                <Link
-                  href="/auth/logout"
-                  className="glass-pill flex items-center gap-1 px-2 py-1 rounded-lg text-[11px]"
-                  style={{ color: 'var(--ink-secondary)' }}
-                  title={user.email || 'Account'}
-                >
-                  <span
-                    className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-white"
-                    style={{ backgroundColor: 'var(--accent)' }}
+                <div ref={userMenuRef} className="relative">
+                  <button
+                    onClick={() => setUserMenuOpen(!userMenuOpen)}
+                    className="glass-pill flex items-center gap-1 px-2 py-1 rounded-lg text-[11px]"
+                    style={{ color: 'var(--ink-secondary)' }}
+                    title={user.email || 'Account'}
                   >
-                    {userInitial}
-                  </span>
-                </Link>
+                    <span
+                      className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-white"
+                      style={{ backgroundColor: 'var(--accent)' }}
+                    >
+                      {userInitial}
+                    </span>
+                  </button>
+                  {userMenuOpen && (
+                    <div
+                      className="absolute right-0 top-full mt-1 py-1 rounded-lg min-w-[160px]"
+                      style={{
+                        background: 'var(--bg)',
+                        border: '1px solid var(--card-border)',
+                        boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+                        zIndex: 50,
+                      }}
+                    >
+                      <div className="px-3 py-1.5 text-[11px] truncate" style={{ color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
+                        {user.email}
+                      </div>
+                      <Link
+                        href="/auth/logout"
+                        className="block px-3 py-1.5 text-[12px] font-medium hover:bg-[var(--border)] transition-colors"
+                        style={{ color: 'var(--ink)' }}
+                        onClick={() => setUserMenuOpen(false)}
+                      >
+                        Logout
+                      </Link>
+                    </div>
+                  )}
+                </div>
               ) : (
                 <Link
                   href="/auth/login"

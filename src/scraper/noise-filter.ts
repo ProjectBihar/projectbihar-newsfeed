@@ -90,8 +90,53 @@ const DEVELOPMENTAL_SIGNALS_HI = [
   'रिहाई', 'स्वीकृत', 'जारी', 'समर्पित',
 ];
 
+// ── Roundup / live-blog / daily digest noise ──
+// Generic compilation headlines that are NOT individual news stories
+const ROUNDUP_NOISE_EN = [
+  'news today live',
+  'breaking news live',
+  'live updates',
+  'live blog',
+  'daily digest',
+  'top stories',
+  'headlines today',
+  'news roundup',
+  'morning briefing',
+  'evening briefing',
+  'today in',
+  'news you need to know',
+  'key developments',
+  'all you need to know',
+  'in one place',
+  'complete coverage',
+];
+
+const ROUNDUP_NOISE_HI = [
+  'आज की खबरें',
+  'ताजा समाचार',
+  'मुख्य समाचार',
+  'बड़ी खबरें',
+  'प्रमुख खबरें',
+  'लाइव अपडेट',
+  'लाइव ब्लॉग',
+  'खबरों का पुलिंदा',
+  'आज की प्रमुख खबरें',
+  'दिनभर की खबरें',
+  'शाम की खबरें',
+  'सुबह की खबरें',
+  'खास खबरें',
+  'ये भी पढ़ें',
+  'पढ़ें आज की ताजा',
+  'जानें आज की',
+  'बिहार ब्रेकिंग न्यूज़',
+  'बिहार की खबरें',
+  'बिहार न्यूज़ टुडे',
+  'आज के मुख्य',
+  'ताजा खबर',
+];
+
 /**
- * Returns true if the article is pure noise (political/crime) with NO
+ * Returns true if the article is pure noise (political/crime/roundup) with NO
  * developmental signal. Returns false if the article should be kept.
  */
 export function isNoiseArticle(headline: string, synopsis: string): boolean {
@@ -105,11 +150,20 @@ export function isNoiseArticle(headline: string, synopsis: string): boolean {
     matchesAnyToken(text, CRIME_NOISE_EN) ||
     matchesAnyToken(text, CRIME_NOISE_HI);
 
+  const hasRoundupNoise =
+    matchesAnyToken(text, ROUNDUP_NOISE_EN) ||
+    matchesAnyToken(text, ROUNDUP_NOISE_HI);
+
   const hasDevelopmentalSignal =
     matchesAnyToken(text, DEVELOPMENTAL_SIGNALS_EN) ||
     matchesAnyToken(text, DEVELOPMENTAL_SIGNALS_HI);
 
-  // Noise detected but NO developmental signal → drop
+  // Roundup/live-blog → always noise (no developmental override needed)
+  if (hasRoundupNoise) {
+    return true;
+  }
+
+  // Political/crime noise detected but NO developmental signal → drop
   if ((hasPoliticalNoise || hasCrimeNoise) && !hasDevelopmentalSignal) {
     return true;
   }

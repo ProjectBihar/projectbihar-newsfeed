@@ -91,9 +91,9 @@ function Pagination({ page, totalPages, onPageChange }: { page: number; totalPag
   );
 }
 
-function FeedTabSwitcher({ active, onChange, curatedCount, allCount }: { active: FeedTab; onChange: (tab: FeedTab) => void; curatedCount: number; allCount: number }) {
+function FeedTabSwitcher({ active, onChange, curatedCount, allCount, language, onLanguageChange }: { active: FeedTab; onChange: (tab: FeedTab) => void; curatedCount: number; allCount: number; language: 'all' | 'en' | 'hi'; onLanguageChange: (lang: 'all' | 'en' | 'hi') => void }) {
   return (
-    <div className="flex items-center gap-2 mb-4">
+    <div className="flex items-center gap-2 mb-4 flex-wrap">
       <button
         onClick={() => onChange('curated')}
         className={`px-4 py-2 rounded-lg text-[13px] font-medium transition-all ${
@@ -118,6 +118,25 @@ function FeedTabSwitcher({ active, onChange, curatedCount, allCount }: { active:
         All News
         <span className="ml-1.5 text-[11px] opacity-70">({allCount})</span>
       </button>
+
+      {/* Separator */}
+      <div className="w-px h-4 mx-0.5 flex-shrink-0" style={{ backgroundColor: 'var(--border)' }} />
+
+      {/* Language filter — always visible on both tabs */}
+      {(['all', 'en', 'hi'] as const).map((lang) => (
+        <button
+          key={lang}
+          onClick={() => onLanguageChange(lang)}
+          className={`px-3 py-1.5 rounded-full text-[13px] font-medium transition-all gpu-accel flex-shrink-0 ${
+            language === lang
+              ? 'bg-[var(--accent)] text-white shadow-sm'
+              : 'hover:bg-[var(--border)]'
+          }`}
+          style={language !== lang ? { color: 'var(--ink-secondary)' } : undefined}
+        >
+          {lang === 'all' ? 'All' : lang === 'en' ? 'EN' : 'HI'}
+        </button>
+      ))}
     </div>
   );
 }
@@ -142,12 +161,12 @@ export default function Home() {
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  // Fetch articles based on active tab
-  const fetchArticles = useCallback(async (tab: FeedTab) => {
+  // Fetch ALL articles once (tab-independent) so badge counts are always accurate
+  const fetchArticles = useCallback(async () => {
     setLoading(true);
     try {
       const [articlesRes, blockedRes] = await Promise.all([
-        fetch(`/api/articles?tab=${tab}`),
+        fetch('/api/articles?tab=all'),
         fetch('/api/block'),
       ]);
       const [articlesData, blockedData] = await Promise.all([
@@ -163,12 +182,12 @@ export default function Home() {
     }
   }, []);
 
-  // Initial fetch
+  // Initial fetch — always fetch the full dataset
   useEffect(() => {
-    fetchArticles(feedTab);
-  }, [feedTab, fetchArticles]);
+    fetchArticles();
+  }, [fetchArticles]);
 
-  // Re-fetch when tab changes
+  // Tab change — no re-fetch needed, data is already loaded
   const handleTabChange = useCallback((tab: FeedTab) => {
     setFeedTab(tab);
     setPage(1);
@@ -198,17 +217,30 @@ export default function Home() {
   }, [articles, schedulePredictions]);
 
   const filtered = useMemo(() => {
-    return articles.filter((a) => {
+    const result = articles.filter((a) => {
       // In curated tab, hide noise articles
       if (feedTab === 'curated' && a.is_noise) return false;
-      if (activeCategory !== 'all' && a.category !== activeCategory) return false;
+      // Category filter only applies in curated tab
+      if (feedTab === 'curated' && activeCategory !== 'all' && a.category !== activeCategory) return false;
       if (language !== 'all' && a.language !== language) return false;
       if (isBlockedArticle(a.headline, a.synopsis, blockedPhrases)) return false;
       return true;
     });
+
+    // Curated tab: sort by sentiment score (positive → negative → neutral), then by recency
+    if (feedTab === 'curated') {
+      return [...result].sort((a, b) => {
+        const scoreA = a.user_rating === 'positive' ? 2 : a.user_rating === 'negative' ? -2 : 0;
+        const scoreB = b.user_rating === 'positive' ? 2 : b.user_rating === 'negative' ? -2 : 0;
+        if (scoreB !== scoreA) return scoreB - scoreA;
+        return b.published_timestamp - a.published_timestamp;
+      });
+    }
+
+    return result;
   }, [articles, activeCategory, language, blockedPhrases, feedTab]);
 
-  // Count totals for tab display
+  // Count totals — always accurate since articles is the full dataset
   const curatedCount = useMemo(() => articles.filter((a) => !a.is_noise).length, [articles]);
   const allCount = articles.length;
 
@@ -228,9 +260,9 @@ export default function Home() {
     );
   }, []);
 
-  const handleCategoryCorrected = useCallback((articleId: string, newCategory: string) => {
+  const handleCategoryCorrected = useCallback((articleId: string, update: { category?: string; is_noise?: boolean }) => {
     setArticles((prev) =>
-      prev.map((a) => (a.id === articleId ? { ...a, category: newCategory } : a))
+      prev.map((a) => (a.id === articleId ? { ...a, ...update } : a))
     );
   }, []);
 
@@ -243,8 +275,8 @@ export default function Home() {
   }, []);
 
   const handleRefresh = useCallback(() => {
-    fetchArticles(feedTab);
-  }, [feedTab, fetchArticles]);
+    fetchArticles();
+  }, [fetchArticles]);
 
   const scrollToTop = useCallback(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -272,13 +304,16 @@ export default function Home() {
           onChange={handleTabChange}
           curatedCount={curatedCount}
           allCount={allCount}
+          language={language}
+          onLanguageChange={setLanguage}
         />
 
-        <CategoryTabs
-          active={activeCategory}
-          language={language}
-          onLanguageChange={(lang) => setLanguage(lang)}
-        />
+        {feedTab === 'curated' && (
+          <CategoryTabs
+            active={activeCategory}
+            currentTab={feedTab}
+          />
+        )}
 
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mt-2 items-stretch">

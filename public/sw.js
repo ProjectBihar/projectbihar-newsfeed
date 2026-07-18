@@ -1,9 +1,8 @@
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v4';
 const CACHE_NAME = `bihar-news-${CACHE_VERSION}`;
 const STATIC_CACHE = `bihar-news-static-${CACHE_VERSION}`;
 
 const PRECACHE_URLS = [
-  '/',
   '/manifest.json',
   '/icon-192.svg',
   '/icon-512.svg',
@@ -18,7 +17,7 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Activate: clean old caches, claim all clients, notify them to reload
+// Activate: clean old caches, claim all clients
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
@@ -28,23 +27,18 @@ self.addEventListener('activate', (event) => {
           .map((key) => caches.delete(key))
       )
     ).then(() => self.clients.claim())
-    .then(() => {
-      // Notify all open tabs to reload
-      self.clients.matchAll().then((clients) => {
-        clients.forEach((client) => client.postMessage({ type: 'RELOAD' }));
-      });
-    })
   );
 });
 
-// Fetch: network-first for API, cache-first for static
+// Fetch: network-first for API and HTML, cache-first for static assets only
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip non-GET and cross-origin
+  // Skip non-GET, cross-origin, and the SW script itself
   if (request.method !== 'GET') return;
   if (url.origin !== location.origin) return;
+  if (url.pathname === '/sw.js') return;
 
   // API calls: network-first
   if (url.pathname.startsWith('/api/')) {
@@ -53,6 +47,22 @@ self.addEventListener('fetch', (event) => {
         .then((response) => {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          return response;
+        })
+        .catch(() => caches.match(request))
+    );
+    return;
+  }
+
+  // HTML pages: network-first (never serve stale auth state)
+  if (request.headers.get('accept')?.includes('text/html')) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response && response.status === 200) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          }
           return response;
         })
         .catch(() => caches.match(request))
@@ -74,11 +84,4 @@ self.addEventListener('fetch', (event) => {
       return cached || fetchPromise;
     })
   );
-});
-
-// Listen for messages from the main thread
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
 });

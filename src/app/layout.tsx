@@ -53,13 +53,6 @@ export default function RootLayout({
                   }).catch(function(err) {
                     console.log('SW registration failed:', err);
                   });
-
-                  // Listen for reload message from service worker
-                  navigator.serviceWorker.addEventListener('message', function(event) {
-                    if (event.data && event.data.type === 'RELOAD') {
-                      window.location.reload();
-                    }
-                  });
                 });
               }
             `,
