@@ -4,11 +4,15 @@ import { discoverFromRSS, extractRSSDate } from './parser-rss';
 import { extractArticleData } from './article-extractor';
 import { extractPublishDate } from './date-handler';
 import { generateArticleId } from './dedup';
-import { classifyArticle } from './classifier';
-import { upsertArticle, getExistingIds, getBlockedPhrases, type ArticleRow } from './db';
+import { classifyArticle, setLearnedKeywords } from './classifier';
+import { upsertArticle, getExistingIds, getBlockedPhrases, getLearnedKeywords, type ArticleRow } from './db';
 import { SEVEN_DAYS_MS, DELAY_BETWEEN_REQUESTS_MS } from './config';
 import { matchesAnyToken, matchesToken } from './token-match';
 import { isNoiseArticle } from './noise-filter';
+
+// Blocked phrases loaded from DB at startup
+let blockedPhrases: string[] = [];
+import { isBlockedArticle } from '@/lib/block-filter';
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -188,21 +192,27 @@ const NON_BIHAR_FALSE_POSITIVE_CITIES = [
 function isBiharRelevant(headline: string, synopsis: string): boolean {
   const text = `${headline} ${synopsis}`;
 
-  // Hard block: non-Bihar state/city mentioned → reject
+  // Strong Bihar signals — state name or district
+  const hasStateName = matchesAnyToken(text, BIHAR_STATE_NAMES);
+  const hasDistrict = matchesAnyToken(text, BIHAR_DISTRICTS);
+
+  // If strong Bihar signal is present, allow even if non-Bihar state is mentioned
+  // (e.g. "Bihar CM meets UP CM in Lucknow" is still Bihar-relevant)
+  if (hasStateName || hasDistrict) {
+    return true;
+  }
+
+  // Hard block: non-Bihar state/city mentioned and NO Bihar signal → reject
   if (matchesAnyToken(text, NON_BIHAR_STATES)) {
     return false;
   }
 
-  // Hard block: known false-positive cities from Bihar-dedicated feeds → reject
+  // Hard block: known false-positive cities → reject
   if (matchesAnyToken(text, NON_BIHAR_FALSE_POSITIVE_CITIES)) {
     return false;
   }
 
-  // Positive match required: must mention "Bihar" state name OR a Bihar district/city
-  const hasStateName = matchesAnyToken(text, BIHAR_STATE_NAMES);
-  const hasDistrict = matchesAnyToken(text, BIHAR_DISTRICTS);
-
-  return hasStateName || hasDistrict;
+  return false;
 }
 
 async function scrapeSource(source: SourceConfig): Promise<number> {
@@ -271,6 +281,12 @@ async function scrapeSource(source: SourceConfig): Promise<number> {
       // Bihar relevance gate — token-bounded matching
       if (!isBiharRelevant(data.headline, data.synopsis)) {
         console.log(`  ✗ Not Bihar-relevant: ${data.headline.slice(0, 60)}`);
+        continue;
+      }
+
+      // Blocked phrase filter
+      if (blockedPhrases.length > 0 && isBlockedArticle(data.headline, data.synopsis, blockedPhrases)) {
+        console.log(`  ✗ Blocked phrase match: ${data.headline.slice(0, 60)}`);
         continue;
       }
 
@@ -401,6 +417,19 @@ async function main() {
   console.log(`Sources: ${ALL_SOURCES.length} | Concurrency: ${SOURCE_CONCURRENCY}`);
   console.log(`Timeouts: script=${SCRIPT_TIMEOUT_MS / 60_000}min, source=${SOURCE_TIMEOUT_MS / 60_000}min`);
   console.log('═══════════════════════════════════════════');
+
+  // Load learned keywords and blocked phrases from DB
+  try {
+    const [learned, blocked] = await Promise.all([
+      getLearnedKeywords(),
+      getBlockedPhrases(),
+    ]);
+    setLearnedKeywords(learned);
+    blockedPhrases = blocked;
+    console.log(`Loaded ${learned.length} learned keywords, ${blocked.length} blocked phrases`);
+  } catch (err) {
+    console.error(`Failed to load DB data: ${(err as Error).message} — continuing with defaults`);
+  }
 
   const results = await mapWithConcurrency(ALL_SOURCES, SOURCE_CONCURRENCY, (source) =>
     withTimeout(

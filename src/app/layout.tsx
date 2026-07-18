@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import BlockPhraseDialogWrapper from '@/components/BlockPhraseDialogWrapper';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 export const metadata: Metadata = {
   title: 'PrōjectBihar Newsfeed',
@@ -38,7 +39,9 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col">
         <main className="flex-1">
-          {children}
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
         </main>
         <BlockPhraseDialogWrapper />
         <script

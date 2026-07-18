@@ -195,12 +195,14 @@ export default function CategoryPage() {
         fetch('/api/articles?tab=all'),
         fetch('/api/block'),
       ]);
-      const [articlesData, blockedData] = await Promise.all([
-        articlesRes.json(),
-        blockedRes.json(),
-      ]);
-      setArticles(articlesData.articles || []);
-      setBlockedPhrases((blockedData.phrases || []).map((p: { phrase: string }) => p.phrase));
+      if (articlesRes.ok) {
+        const articlesData = await articlesRes.json();
+        setArticles(articlesData.articles || []);
+      }
+      if (blockedRes.ok) {
+        const blockedData = await blockedRes.json();
+        setBlockedPhrases((blockedData.phrases || []).map((p: { phrase: string }) => p.phrase));
+      }
     } catch (err) {
       console.error('Failed to initialize:', err);
     } finally {

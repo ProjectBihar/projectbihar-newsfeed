@@ -5,9 +5,18 @@ import { NextResponse, type NextRequest } from 'next/server';
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT = 120; // requests per minute
 const RATE_WINDOW = 60_000;
+const MAX_RATE_LIMIT_ENTRIES = 10_000;
 
 function checkRateLimit(ip: string): boolean {
   const now = Date.now();
+
+  // Lazy cleanup: evict expired entries when map gets too large
+  if (rateLimitMap.size > MAX_RATE_LIMIT_ENTRIES) {
+    for (const [key, entry] of rateLimitMap) {
+      if (now > entry.resetAt) rateLimitMap.delete(key);
+    }
+  }
+
   const entry = rateLimitMap.get(ip);
 
   if (!entry || now > entry.resetAt) {
@@ -18,14 +27,6 @@ function checkRateLimit(ip: string): boolean {
   entry.count++;
   return entry.count <= RATE_LIMIT;
 }
-
-// Cleanup old entries every 5 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [ip, entry] of rateLimitMap) {
-    if (now > entry.resetAt) rateLimitMap.delete(ip);
-  }
-}, 300_000);
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({

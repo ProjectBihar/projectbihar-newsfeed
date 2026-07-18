@@ -126,3 +126,17 @@ export async function getBlockedPhrases(): Promise<string[]> {
   ]);
   return (result.data || []).map((r: { phrase: string }) => r.phrase);
 }
+
+/**
+ * Fetch learned category keywords from user corrections.
+ */
+export async function getLearnedKeywords(): Promise<{ keyword: string; category: string; weight: number }[]> {
+  const supabase = getSupabaseClient();
+  const result = await Promise.race([
+    supabase.from('learned_category_keywords').select('keyword, category, weight'),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('DB getLearnedKeywords timeout')), DB_QUERY_TIMEOUT_MS)
+    ),
+  ]);
+  return (result.data || []) as { keyword: string; category: string; weight: number }[];
+}
