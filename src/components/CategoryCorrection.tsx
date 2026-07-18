@@ -98,6 +98,7 @@ function CategoryCorrection({ articleId, currentCategory, isNoise, onCorrected }
   const dropdown = isOpen ? createPortal(
     <div
       ref={menuRef}
+      role="menu"
       className="p-2 gpu-accel"
       style={{
         position: 'absolute',
@@ -121,6 +122,7 @@ function CategoryCorrection({ articleId, currentCategory, isNoise, onCorrected }
       {/* Noise option */}
       <button
         onClick={handleMarkNoise}
+        role="menuitem"
         className={`w-full text-left px-2 py-1 rounded text-[11px] font-medium transition-colors ${
           isNoise ? 'opacity-50' : 'hover:bg-[var(--border)]'
         }`}
@@ -129,6 +131,7 @@ function CategoryCorrection({ articleId, currentCategory, isNoise, onCorrected }
         <span
           className="inline-block w-2 h-2 rounded-full mr-1.5"
           style={{ backgroundColor: 'rgba(255,59,48,0.7)' }}
+          aria-hidden="true"
         />
         Noise
       </button>
@@ -138,6 +141,7 @@ function CategoryCorrection({ articleId, currentCategory, isNoise, onCorrected }
         <button
           key={cat.slug}
           onClick={() => handleCorrect(cat.slug)}
+          role="menuitem"
           className={`w-full text-left px-2 py-1 rounded text-[11px] font-medium transition-colors ${
             cat.slug === currentCategory ? 'opacity-50' : 'hover:bg-[var(--border)]'
           }`}
@@ -168,9 +172,11 @@ function CategoryCorrection({ articleId, currentCategory, isNoise, onCorrected }
         onClick={toggleDropdown}
         className="p-1.5 sm:p-1 rounded transition-all hover:scale-110 gpu-accel min-w-[32px] min-h-[32px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
         style={{ color: 'var(--muted)', opacity: 0.5 }}
-        title="Correct category"
+        aria-label="Correct category"
+        aria-expanded={isOpen}
+        aria-haspopup="true"
       >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
           <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
         </svg>

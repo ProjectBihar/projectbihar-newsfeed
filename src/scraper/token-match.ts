@@ -10,6 +10,18 @@ function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+// Cache compiled regex patterns to avoid recompilation on every call
+const regexCache = new Map<string, RegExp>();
+
+function getCachedRegex(pattern: string): RegExp {
+  let re = regexCache.get(pattern);
+  if (!re) {
+    re = new RegExp(pattern, 'i');
+    regexCache.set(pattern, re);
+  }
+  return re;
+}
+
 /**
  * Check if `term` appears as a standalone whole token in `text`.
  * Case-insensitive for English; exact-match for Hindi tokens.
@@ -24,8 +36,8 @@ export function matchesToken(text: string, term: string): boolean {
     return tokens.some((tok) => tok === t);
   }
 
-  // English terms: use word-boundary regex
-  return new RegExp(`\\b${escapeRegex(t)}\\b`, 'i').test(lower);
+  // English terms: use cached word-boundary regex
+  return getCachedRegex(`\\b${escapeRegex(t)}\\b`).test(lower);
 }
 
 /**

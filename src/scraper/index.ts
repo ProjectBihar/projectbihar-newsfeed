@@ -53,14 +53,14 @@ const NON_BIHAR_STATES = [
   'Aligarh', 'Bareilly', 'Moradabad', 'Jhansi', 'Firozabad', 'Mathura',
   'Ayodhya', 'Faizabad', 'Basti', 'Sitapur', 'Hardoi', 'Unnao',
   'Rae Bareli', 'Amethi', 'Sultanpur', 'Azamgarh', 'Ballia', 'Mau',
-  'Deoria', 'Basti', 'Maharajganj', 'Kushinagar', 'Gonda', 'Bahraich',
+  'Deoria', 'Maharajganj', 'Kushinagar', 'Gonda', 'Bahraich',
   'Shravasti', 'Balrampur', 'Pilibhit', 'Shahjahanpur', 'Budaun',
   'Bijnor', 'Rampur', 'Sambhal', 'Amroha', 'Bulandshahr', 'Hapur',
   'Etah', 'Kasganj', 'Mainpuri', 'Farrukhabad', 'Kannauj', 'Etawah',
   'Auraiya', 'Kanpur', 'Hamirpur', 'Mahoba', 'Lalitpur', 'Orai',
   'Chitrakoot', 'Pratapgarh', 'Mirzapur', 'Sonbhadra', 'Robertsganj',
   'Chandauli', 'Varanasi', 'Gazipur', 'Jaunpur', 'Ghazipur',
-  'Agra', 'Aligarh', 'Firozabad', 'Hathras', 'Mathura',
+  'Agra', 'Hathras',
   // UP cities in Hindi
   'गोरखपुर', 'प्रयागराज', 'इलाहाबाद', 'नोएडा', 'गाजियाबाद', 'मेरठ',
   'अलीगढ़', 'बरेली', 'मुरादाबाद', 'झांसी', 'फिरोजाबाद', 'मथुरा',
@@ -238,16 +238,17 @@ async function scrapeSource(source: SourceConfig): Promise<number> {
   }
 
   // Batch dedup: collect all IDs and check which already exist
-  const allIds = discovered.map((a) => generateArticleId(a.url));
+  const articlesWithIds = discovered.map((a) => ({ ...a, id: generateArticleId(a.url) }));
+  const allIds = articlesWithIds.map((a) => a.id);
   const existingIds = await getExistingIds(allIds);
-  const newCount = discovered.filter((_, i) => !existingIds.has(allIds[i])).length;
-  console.log(`  [DEDUP] ${source.name}: ${newCount} new, ${discovered.length - newCount} already in DB`);
+  const newCount = articlesWithIds.filter((a) => !existingIds.has(a.id)).length;
+  console.log(`  [DEDUP] ${source.name}: ${newCount} new, ${articlesWithIds.length - newCount} already in DB`);
 
   let stored = 0;
 
-  for (const article of discovered) {
+  for (const article of articlesWithIds) {
     try {
-      const id = generateArticleId(article.url);
+      const id = article.id;
 
       // Skip if already in DB
       if (existingIds.has(id)) continue;
