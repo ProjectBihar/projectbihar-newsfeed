@@ -45,11 +45,21 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html: `
+              // Lock screen orientation to portrait when possible (PWA fullscreen)
+              if (screen.orientation && screen.orientation.lock) {
+                screen.orientation.lock('portrait').catch(function() {});
+              }
+              document.addEventListener('visibilitychange', function() {
+                if (screen.orientation && screen.orientation.lock) {
+                  screen.orientation.lock('portrait').catch(function() {});
+                }
+              });
+
+              // Service worker
               if ('serviceWorker' in navigator) {
                 window.addEventListener('load', function() {
                   navigator.serviceWorker.register('/sw.js').then(function(reg) {
                     console.log('SW registered:', reg.scope);
-                    // Check for updates every 60 seconds
                     setInterval(function() { reg.update(); }, 60000);
                   }).catch(function(err) {
                     console.log('SW registration failed:', err);

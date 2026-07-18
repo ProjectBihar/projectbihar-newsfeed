@@ -283,3 +283,14 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.4); }
     border-radius: 14px;
   }
 }
+
+/* ═══ Landscape lock: force portrait-like layout on mobile if rotation slips through ═══ */
+@media (orientation: landscape) and (max-height: 500px) {
+  html {
+    transform: none;
+  }
+  body {
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+}
