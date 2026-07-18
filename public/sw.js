@@ -1,5 +1,6 @@
-const CACHE_NAME = 'bihar-news-v1';
-const STATIC_CACHE = 'bihar-news-static-v1';
+const CACHE_VERSION = 'v2';
+const CACHE_NAME = `bihar-news-${CACHE_VERSION}`;
+const STATIC_CACHE = `bihar-news-static-${CACHE_VERSION}`;
 
 const PRECACHE_URLS = [
   '/',
@@ -8,7 +9,7 @@ const PRECACHE_URLS = [
   '/icon-512.svg',
 ];
 
-// Install: precache static assets
+// Install: precache static assets, skip waiting to activate immediately
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(STATIC_CACHE)
@@ -17,7 +18,7 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Activate: clean old caches
+// Activate: clean old caches, claim all clients, notify them to reload
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
@@ -27,6 +28,12 @@ self.addEventListener('activate', (event) => {
           .map((key) => caches.delete(key))
       )
     ).then(() => self.clients.claim())
+    .then(() => {
+      // Notify all open tabs to reload
+      self.clients.matchAll().then((clients) => {
+        clients.forEach((client) => client.postMessage({ type: 'RELOAD' }));
+      });
+    })
   );
 });
 
@@ -39,7 +46,7 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return;
   if (url.origin !== location.origin) return;
 
-  // API calls: network-first with short timeout
+  // API calls: network-first
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
       fetch(request)
@@ -53,26 +60,23 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets: cache-first
+  // Static assets: cache-first with network update
   event.respondWith(
     caches.match(request).then((cached) => {
-      if (cached) return cached;
-
-      return fetch(request).then((response) => {
-        // Only cache same-origin successful responses
-        if (!response || response.status !== 200 || response.type !== 'basic') {
-          return response;
+      const fetchPromise = fetch(request).then((response) => {
+        if (response && response.status === 200 && response.type === 'basic') {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
         }
-
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
         return response;
-      });
+      }).catch(() => cached);
+
+      return cached || fetchPromise;
     })
   );
 });
 
-// Listen for skip waiting message
+// Listen for messages from the main thread
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();

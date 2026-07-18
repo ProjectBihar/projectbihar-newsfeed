@@ -48,8 +48,17 @@ export default function RootLayout({
                 window.addEventListener('load', function() {
                   navigator.serviceWorker.register('/sw.js').then(function(reg) {
                     console.log('SW registered:', reg.scope);
+                    // Check for updates every 60 seconds
+                    setInterval(function() { reg.update(); }, 60000);
                   }).catch(function(err) {
                     console.log('SW registration failed:', err);
+                  });
+
+                  // Listen for reload message from service worker
+                  navigator.serviceWorker.addEventListener('message', function(event) {
+                    if (event.data && event.data.type === 'RELOAD') {
+                      window.location.reload();
+                    }
                   });
                 });
               }
