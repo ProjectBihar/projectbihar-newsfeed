@@ -66,11 +66,12 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  // Allow public routes
+  // Allow public routes (read-only endpoints with public RLS)
   if (
     pathname.startsWith('/auth') ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api/health') ||
+    pathname.startsWith('/api/articles') ||
     pathname === '/manifest.json' ||
     pathname === '/sw.js' ||
     pathname.startsWith('/icon-')

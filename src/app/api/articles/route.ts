@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase-server';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_KEY!
+);
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
 export async function GET(request: NextRequest) {
   const tab = request.nextUrl.searchParams.get('tab') || 'curated';
   const minTimestamp = Date.now() - SEVEN_DAYS_MS;
-  const supabase = await createClient();
 
   if (tab === 'all') {
     const { data, error } = await supabase
