@@ -227,17 +227,8 @@ export default function Home() {
       return true;
     });
 
-    // Curated tab: sort by sentiment score (positive → negative → neutral), then by recency
-    if (feedTab === 'curated') {
-      return [...result].sort((a, b) => {
-        const scoreA = a.user_rating === 'positive' ? 2 : a.user_rating === 'negative' ? -2 : 0;
-        const scoreB = b.user_rating === 'positive' ? 2 : b.user_rating === 'negative' ? -2 : 0;
-        if (scoreB !== scoreA) return scoreB - scoreA;
-        return b.published_timestamp - a.published_timestamp;
-      });
-    }
-
-    return result;
+    // Always sort by recency (newest first)
+    return result.sort((a, b) => b.published_timestamp - a.published_timestamp);
   }, [articles, activeCategory, language, blockedPhrases, feedTab]);
 
   // Count totals — always accurate since articles is the full dataset
