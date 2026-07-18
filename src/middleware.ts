@@ -55,8 +55,10 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Rate limiting
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+  // Rate limiting — use x-real-ip (set by Vercel/Cloudflare proxy) to avoid spoofing
+  const ip = request.headers.get('x-real-ip')?.trim()
+    || request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+    || 'unknown';
   if (!checkRateLimit(ip)) {
     return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
   }
@@ -70,9 +72,9 @@ export async function middleware(request: NextRequest) {
   if (
     pathname.startsWith('/auth') ||
     pathname.startsWith('/_next') ||
-    pathname.startsWith('/api/health') ||
-    pathname.startsWith('/api/articles') ||
-    pathname.startsWith('/api/sentiment/counts') ||
+    pathname === '/api/health' ||
+    pathname === '/api/articles' ||
+    pathname === '/api/sentiment/counts' ||
     pathname === '/manifest.json' ||
     pathname === '/sw.js' ||
     pathname.startsWith('/icon-')

@@ -184,14 +184,15 @@ export default function Header({ totalArticles, onRefresh }: Props) {
                       <div className="px-3 py-1.5 text-[11px] truncate" style={{ color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
                         {user.email}
                       </div>
-                      <Link
-                        href="/auth/logout"
-                        className="block px-3 py-1.5 text-[12px] font-medium hover:bg-[var(--border)] transition-colors"
-                        style={{ color: 'var(--ink)' }}
-                        onClick={() => setUserMenuOpen(false)}
-                      >
-                        Logout
-                      </Link>
+                      <form action="/auth/logout" method="POST">
+                        <button
+                          type="submit"
+                          className="block w-full text-left px-3 py-1.5 text-[12px] font-medium hover:bg-[var(--border)] transition-colors"
+                          style={{ color: 'var(--ink)' }}
+                        >
+                          Logout
+                        </button>
+                      </form>
                     </div>
                   )}
                 </div>
@@ -244,14 +245,15 @@ export default function Header({ totalArticles, onRefresh }: Props) {
                       <div className="px-3 py-1.5 text-[11px] truncate" style={{ color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
                         {user.email}
                       </div>
-                      <Link
-                        href="/auth/logout"
-                        className="block px-3 py-1.5 text-[12px] font-medium hover:bg-[var(--border)] transition-colors"
-                        style={{ color: 'var(--ink)' }}
-                        onClick={() => setUserMenuOpen(false)}
-                      >
-                        Logout
-                      </Link>
+                      <form action="/auth/logout" method="POST">
+                        <button
+                          type="submit"
+                          className="block w-full text-left px-3 py-1.5 text-[12px] font-medium hover:bg-[var(--border)] transition-colors"
+                          style={{ color: 'var(--ink)' }}
+                        >
+                          Logout
+                        </button>
+                      </form>
                     </div>
                   )}
                 </div>
