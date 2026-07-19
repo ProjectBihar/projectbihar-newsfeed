@@ -73,6 +73,7 @@ export async function middleware(request: NextRequest) {
 
   // Allow public routes (read-only endpoints with public RLS)
   if (
+    pathname === '/login' ||
     pathname.startsWith('/auth') ||
     pathname.startsWith('/_next') ||
     pathname === '/api/health' ||
@@ -91,7 +92,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
     const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = '/auth/login';
+    loginUrl.pathname = '/login';
     return NextResponse.redirect(loginUrl);
   }
 

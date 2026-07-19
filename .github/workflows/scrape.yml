@@ -24,8 +24,9 @@ jobs:
         id: scrape
         run: npx tsx src/scraper/index.ts
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          # 🔥 FIXED: Names now match index.ts exactly
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       - name: Send failure email
         if: failure() || cancelled()
         uses: dawidd6/action-send-mail@v3

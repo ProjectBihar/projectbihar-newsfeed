@@ -1,174 +1,141 @@
-/**
- * Matrix Classifier
- *
- * Assigns articles to one of 8 strict development categories using a
- * deterministic keyword-scoring matrix. Zero AI, zero external APIs.
- *
- * Scoring:
- *   - Title match: +3 points per keyword hit
- *   - Body match:  +1 point per occurrence
- *
- * Default category: "governance" (when no keywords match at all).
- */
+import { SupabaseClient } from '@supabase/supabase-js';
 
-// ═══════════════════════════════════════════════════════════════════
-// Noise Keywords — crime, politics, sensationalism
-// ═══════════════════════════════════════════════════════════════════
-
-const NOISE_KEYWORDS = [
-  // English crime/politics
-  'murder', 'arrested', 'scam', 'protest', 'riot', 'killed', 'shot dead',
-  'fraud', 'corruption', 'bribery', 'extortion', 'ransom', 'kidnapping',
-  'assault', 'robbery', 'theft', 'stolen', 'firing', 'attack',
-  // Hindi crime/politics
-  'मर्डर', 'हत्या', 'गिरफ्तार', 'रैली', 'प्रदर्शन', 'दंगा', 'लूट',
-  'भ्रष्टाचार', 'घूस', 'अपहरण', 'फायरिंग', 'हमला', 'चोरी', 'धोखाधड़ी',
-  'शराब', 'नशा', 'तस्करी', 'अपराध', 'आरोप', 'विवाद',
-];
-
-// ═══════════════════════════════════════════════════════════════════
-// Developmental Overrides — these trump noise flags
-// ═══════════════════════════════════════════════════════════════════
-
-const DEVELOPMENTAL_OVERRIDES = [
-  // English
-  'cabinet approves', 'inaugurated', 'fund allocation', 'foundation stone',
-  'budget allocated', 'scheme launched', 'policy approved', 'recruitment drive',
-  'sanctioned', 'commissioned', 'flagged off', 'dedicated to nation',
-  // Hindi
-  'शिलान्यास', 'उद्घाटन', 'मंजूरी', 'बजट', 'योजना', 'भर्ती',
-  'स्वीकृत', 'जारी', 'समर्पित', 'कैबिनेट',
-];
-
-// ═══════════════════════════════════════════════════════════════════
-// Category Matrix — English + Hindi keywords per category
-// ═══════════════════════════════════════════════════════════════════
-
-export const CATEGORY_MATRIX: Record<string, string[]> = {
-  governance: [
-    'cabinet', 'policy', 'police', 'court', 'high court',
-    'cm', 'minister', 'bpsc', 'सरकार', 'नीतीश', 'पुलिस',
-  ],
-  infrastructure: [
-    'bridge', 'highway', 'expressway', 'construction', 'road',
-    'railway', 'airport', 'पुल', 'सड़क', 'निर्माण',
-  ],
-  economy: [
-    'budget', 'gst', 'tax', 'finance', 'gdp', 'economy',
-    'investment', 'बजट', 'टैक्स',
-  ],
-  agriculture: [
-    'farming', 'kisan', 'crop', 'irrigation', 'monsoon',
-    'makhana', 'flood', 'किसान', 'फसल', 'बाढ़',
-  ],
-  education: [
-    'school', 'university', 'bseb', 'teacher', 'students',
-    'exam', 'result', 'शिक्षा', 'शिक्षक', 'परीक्षा',
-  ],
-  healthcare: [
-    'hospital', 'pmch', 'aiims', 'doctor', 'disease',
-    'medical', 'स्वास्थ्य', 'अस्पताल', 'मरीज',
-  ],
-  industry: [
-    'factory', 'plant', 'manufacturing', 'startup', 'business',
-    'उद्योग', 'कारखाना',
-  ],
-  environment: [
-    'pollution', 'weather', 'aqi', 'climate', 'forest',
-    'rain', 'मौसम', 'प्रदूषण',
-  ],
+// ==========================================
+// 1. THE BILINGUAL BASE MATRIX (English + Hindi)
+// ==========================================
+const BASE_CATEGORY_MATRIX: Record<string, string[]> = {
+  economy: ['economy', 'budget', 'gdp', 'inflation', 'rbi', 'bank', 'finance', 'revenue', 'tax', 'वित्तीय', 'बजट', 'अर्थव्यवस्था', 'कर्ज', 'बैंक', 'राजस्व'],
+  infrastructure: ['bridge', 'road', 'highway', 'construction', 'railway', 'airport', 'nhai', 'flyover', 'rcbd', 'पुल', 'सड़क', 'निर्माण', 'शिलान्यास', 'हाईवे', 'रेलवे'],
+  industry: ['factory', 'plant', 'investment', 'mou', 'startup', 'industry', 'investor', 'manufacturing', 'उद्योग', 'कारखाना', 'निवेश', 'कंपनी', 'फैक्ट्री', 'स्टार्टअप'],
+  agriculture: ['farmer', 'crop', 'irrigation', 'agriculture', 'msp', 'harvest', 'tractor', 'fertilizer', 'किसान', 'कृषि', 'फसल', 'सिंचाई', 'खाद', 'खेती'],
+  education: ['school', 'university', 'college', 'exam', 'student', 'teacher', 'bpsc', 'bseb', 'education', 'शिक्षा', 'स्कूल', 'छात्र', 'परीक्षा', 'शिक्षक', 'रिजल्ट'],
+  healthcare: ['hospital', 'doctor', 'medical', 'disease', 'health', 'pmch', 'aiims', 'medicine', 'अस्पताल', 'स्वास्थ्य', 'डॉक्टर', 'मरीज', 'इलाज', 'दवा'],
+  environment: ['weather', 'pollution', 'rain', 'flood', 'river', 'aqi', 'climate', 'monsoon', 'mausam', 'मौसम', 'प्रदूषण', 'बाढ़', 'पर्यावरण', 'बारिश', 'नदी'],
+  governance: ['cabinet', 'cm', 'minister', 'policy', 'scheme', 'yojana', 'nitish', 'samrat', 'government', 'dgp', 'सरकार', 'नीतीश', 'कैबिनेट', 'योजना', 'नीति', 'मंत्री']
 };
 
-// ═══════════════════════════════════════════════════════════════════
-// Content Quality Evaluator (Noise Detection)
-// ═══════════════════════════════════════════════════════════════════
+// ==========================================
+// 2. THE NOISE GATEKEEPER
+// ==========================================
+const NOISE_KEYWORDS = ['murder', 'rape', 'arrest', 'killed', 'suicide', 'robbery', 'scam', 'fir', 'criminal', 'shootout', 'हत्या', 'गिरफ्तार', 'रेप', 'मर्डर', 'लूट', 'अपराध', 'गोली', 'सुसाइड'];
+const DEVELOPMENTAL_OVERRIDES = ['cabinet', 'inaugurate', 'fund', 'policy', 'scheme', 'shilanyas', 'approval', 'शिलान्यास', 'मंजूरी', 'उद्घाटन', 'कैबिनेट', 'पास'];
 
-/**
- * Evaluate whether an article is noise (crime, politics, sensationalism).
- *
- * Returns true (is noise) if crime/politics keywords dominate.
- * Returns false (not noise) if developmental overrides are present.
- *
- * @returns true if the article is noise, false if it's quality content
- */
-export function evaluateContentQuality(headline: string, bodyText: string): boolean {
-  const text = `${headline} ${bodyText}`.toLowerCase();
+export function evaluateNoise(headline: string, synopsis: string): boolean {
+  const text = `${headline} ${synopsis}`.toLowerCase();
+  
+  // 1. Check for developmental overrides first (Immunity)
+  const hasOverride = DEVELOPMENTAL_OVERRIDES.some(word => text.includes(word));
+  if (hasOverride) return false;
 
-  // Check for developmental overrides first — these trump noise
-  for (const override of DEVELOPMENTAL_OVERRIDES) {
-    if (text.includes(override)) {
-      return false;
-    }
-  }
-
-  // Count noise keyword occurrences
-  let noiseCount = 0;
-  for (const keyword of NOISE_KEYWORDS) {
-    let startPos = 0;
-    while (true) {
-      const idx = text.indexOf(keyword, startPos);
-      if (idx === -1) break;
-      noiseCount++;
-      startPos = idx + keyword.length;
-    }
-  }
-
-  // If 2+ noise keywords found, classify as noise
-  return noiseCount >= 2;
+  // 2. If no immunity, check for crime/political noise
+  const isNoise = NOISE_KEYWORDS.some(word => text.includes(word));
+  return isNoise;
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// Core Classification Function
-// ═══════════════════════════════════════════════════════════════════
-
+// ==========================================
+// 3. THE MACHINE LEARNING FEEDBACK LOOP
+// ==========================================
 /**
- * Classify an article into one of 8 development categories.
- *
- * Scoring rules:
- *   - Title match: +3 points per keyword found in title
- *   - Body match:  +1 point per occurrence in body
- *
- * @returns Category string (all lowercase)
+ * Fetches manual category corrections from the DB and extracts high-frequency 
+ * words to make the classifier smarter on every run.
  */
-export function classifyArticle(title: string, body: string): string {
-  const titleLower = title.toLowerCase();
-  const bodyLower = body.toLowerCase();
+export async function compileLearnedKeywords(supabase: SupabaseClient): Promise<Record<string, string[]>> {
+  const learnedMatrix: Record<string, string[]> = {
+    economy: [], infrastructure: [], industry: [], agriculture: [], 
+    education: [], healthcare: [], environment: [], governance: []
+  };
 
-  const scores: Record<string, number> = {};
+  try {
+    // Fetch user corrections joined with the original headlines
+    const { data, error } = await supabase
+      .from('category_corrections')
+      .select('new_category, articles(headline)');
 
-  for (const category of Object.keys(CATEGORY_MATRIX)) {
-    scores[category] = 0;
+    if (error || !data) return learnedMatrix;
+
+    // A simple term-frequency map per category
+    const tfMap: Record<string, Record<string, number>> = {};
+
+    data.forEach(row => {
+      const category = row.new_category;
+      // @ts-ignore - Supabase join typing
+      const headline = row.articles?.headline;
+      if (!headline || !learnedMatrix[category]) return;
+
+      if (!tfMap[category]) tfMap[category] = {};
+      
+      // Tokenize words longer than 3 chars
+      const words = headline.toLowerCase().replace(/[^\w\s\u0900-\u097F]/g, '').split(/\s+/);
+      words.forEach((word: string) => {
+        if (word.length > 3) {
+          tfMap[category][word] = (tfMap[category][word] || 0) + 1;
+        }
+      });
+    });
+
+    // Extract the top 5 most frequently manually-corrected words per category
+    Object.keys(tfMap).forEach(category => {
+      const sortedWords = Object.entries(tfMap[category])
+        .sort((a, b) => b[1] - a[1]) // Sort by frequency desc
+        .slice(0, 5) // Take top 5
+        .map(entry => entry[0]);
+      
+      learnedMatrix[category] = sortedWords;
+    });
+
+    return learnedMatrix;
+  } catch (e) {
+    console.error("Failed to compile learned keywords:", e);
+    return learnedMatrix;
   }
+}
 
-  for (const [category, keywords] of Object.entries(CATEGORY_MATRIX)) {
-    for (const keyword of keywords) {
-      if (titleLower.includes(keyword)) {
-        scores[category] += 3;
-      }
+// ==========================================
+// 4. THE SCORING ENGINE
+// ==========================================
+/**
+ * Scores the text against the base matrix + the learned matrix.
+ * Returns the highest scoring category.
+ */
+export function determineCategory(
+  headline: string, 
+  synopsis: string, 
+  learnedMatrix: Record<string, string[]>
+): string {
+  const text = `${headline} ${synopsis}`.toLowerCase();
+  
+  const scores: Record<string, number> = {
+    economy: 0, infrastructure: 0, industry: 0, agriculture: 0, 
+    education: 0, healthcare: 0, environment: 0, governance: 0
+  };
 
-      let startPos = 0;
-      while (true) {
-        const idx = bodyLower.indexOf(keyword, startPos);
-        if (idx === -1) break;
-        scores[category] += 1;
-        startPos = idx + keyword.length;
-      }
+  // Iterate through all 8 categories
+  Object.keys(scores).forEach(category => {
+    // 1. Score Base Keywords (Weight: 1 point each)
+    BASE_CATEGORY_MATRIX[category].forEach(keyword => {
+      if (text.includes(keyword)) scores[category] += 1;
+    });
+
+    // 2. Score Learned Keywords from users (Weight: 2 points each - users know best!)
+    if (learnedMatrix[category]) {
+      learnedMatrix[category].forEach(keyword => {
+        if (text.includes(keyword)) scores[category] += 2;
+      });
     }
-  }
+  });
 
-  let maxScore = 0;
-  let winner = 'governance';
+  // Find the highest score
+  let highestCategory = 'governance'; // Default fallback
+  let highestScore = 0;
 
-  for (const [category, score] of Object.entries(scores)) {
-    if (score > maxScore) {
-      maxScore = score;
-      winner = category;
+  Object.entries(scores).forEach(([category, score]) => {
+    if (score > highestScore) {
+      highestScore = score;
+      highestCategory = category;
     }
-  }
+  });
 
-  if (maxScore === 0) {
-    return 'governance';
-  }
-
-  return winner;
+  // If the article scored 0 everywhere, default to 'governance' as a catch-all 
+  // for state-level news, ensuring we never violate the database schema.
+  return highestCategory;
 }

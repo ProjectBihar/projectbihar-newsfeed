@@ -1,88 +1,53 @@
-/**
- * Bihar News Scraper — Master Orchestrator
- *
- * Wires together the entire pipeline:
- *   RSS/HTML Discovery → Content Extraction → Geo-Fencing → Classification
- *   → Deduplication → Database Sync
- *
- * Flow:
- *   Discovered X links → Y passed Geo-Fence → Z passed Deduplication → Synced to DB
- */
-
-import { NEWS_SOURCES_REGISTRY } from './config';
+import { createClient } from '@supabase/supabase-js';
+import * as dotenv from 'dotenv';
+import { SCRAPER_SOURCES } from './config';
 import { runUnifiedPipeline } from './pipeline';
-import { fetchRecentTitles, syncToDatabase } from './db';
-import { deduplicateArticles } from './dedup';
 
-// Overall script timeout — kill after 15 minutes no matter what
-const SCRIPT_TIMEOUT_MS = 15 * 60 * 1000;
-const scriptTimer = setTimeout(() => {
-  console.error(
-    `\n⏱ FATAL: Script exceeded ${SCRIPT_TIMEOUT_MS / 60_000} minute timeout. Forcing exit.`
-  );
-  process.exit(1);
-}, SCRIPT_TIMEOUT_MS);
-scriptTimer.unref();
+dotenv.config({ path: '.env.local' });
+dotenv.config();
 
-// ═══════════════════════════════════════════════════════════════════
-// Main Entry Point
-// ═══════════════════════════════════════════════════════════════════
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || '', 
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+);
 
 async function main() {
-  const startTime = Date.now();
-
   console.log('═══════════════════════════════════════════');
   console.log(`Bihar News Scraper — ${new Date().toISOString()}`);
-  console.log(`Sources: ${NEWS_SOURCES_REGISTRY.length}`);
   console.log('═══════════════════════════════════════════');
 
-  // ── Step 0: Fetch historical context from DB ──
-  console.log('\n▶ [DB] Fetching recent titles for deduplication...');
-  const existingTitles = await fetchRecentTitles();
-  console.log(`  [DB] Found ${existingTitles.length} titles from last 24 hours`);
+  try {
+    const articles = await runUnifiedPipeline(SCRAPER_SOURCES);
 
-  // ── Step 1: Run unified pipeline (discover + extract + geo-fence + classify) ──
-  console.log('\n▶ [Pipeline] Starting unified pipeline...');
-  const rawArticles = await runUnifiedPipeline(NEWS_SOURCES_REGISTRY);
+    if (!articles || articles.length === 0) {
+      console.log('\n[Scraper] No new articles found or all were filtered out.');
+      return;
+    }
 
-  const discovered = rawArticles.length; // After geo-fence (pipeline filters internally)
+    console.log(`\n[Scraper] Pipeline returned ${articles.length} valid articles. Syncing in batches...`);
 
-  console.log(`\n═══════════════════════════════════════════`);
-  console.log(`Pipeline complete: ${discovered} articles passed geo-fence`);
-  console.log('═══════════════════════════════════════════');
+    // ── THE BULLETPROOF BATCH UPSERT ──
+    const BATCH_SIZE = 50;
+    let successCount = 0;
 
-  // ── Step 2: Deduplication ──
-  console.log('\n▶ [Dedup] Running title-based deduplication...');
-  const uniqueArticles = deduplicateArticles(rawArticles, existingTitles);
-  const dedupPassed = uniqueArticles.length;
-  const dedupDropped = discovered - dedupPassed;
+    for (let i = 0; i < articles.length; i += BATCH_SIZE) {
+      const batch = articles.slice(i, i + BATCH_SIZE);
+      const { error } = await supabase
+        .from('articles')
+        .upsert(batch, { onConflict: 'url' });
 
-  console.log(
-    `  [Dedup] ${dedupPassed} unique articles (${dedupDropped} duplicates removed)`
-  );
+      if (error) {
+        console.error(`\n❌ [Database Error] Batch ${i/BATCH_SIZE + 1} failed:`, error.message);
+      } else {
+        successCount += batch.length;
+      }
+    }
 
-  // ── Step 3: Sync to Database ──
-  console.log('\n▶ [DB] Syncing to database...');
-  await syncToDatabase(uniqueArticles);
+    console.log(`\n✅ Successfully synced ${successCount}/${articles.length} fresh articles to Supabase!`);
 
-  // ── Final Summary ──
-  const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-
-  console.log('\n═══════════════════════════════════════════');
-  console.log(
-    `Discovered ${NEWS_SOURCES_REGISTRY.length} sources → ` +
-    `${discovered} passed Geo-Fence → ` +
-    `${dedupPassed} passed Deduplication → ` +
-    `Synced to DB`
-  );
-  console.log(`Elapsed: ${elapsed}s`);
-  console.log('═══════════════════════════════════════════');
-
-  clearTimeout(scriptTimer);
+  } catch (err: any) {
+    console.error('\n❌ Fatal error in scraper main loop:', err.message);
+  }
 }
 
-main().catch((err) => {
-  console.error('Fatal error:', err);
-  clearTimeout(scriptTimer);
-  process.exit(1);
-});
+main();

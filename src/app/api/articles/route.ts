@@ -1,54 +1,29 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!
-);
+export async function GET(request: Request) {
+  // Initialize Supabase client for Next.js App Router
+  const supabase = createRouteHandlerClient({ cookies });
 
-const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
-
-export async function GET(request: NextRequest) {
-  const tab = request.nextUrl.searchParams.get('tab') || 'curated';
-  const minTimestamp = Date.now() - SEVEN_DAYS_MS;
-
-  if (tab === 'all') {
-    const { data, error } = await supabase
+  try {
+    // Fetch the latest 100 articles, newest first
+    const { data: articles, error } = await supabase
       .from('articles')
       .select('*')
-      .gte('published_timestamp', minTimestamp)
-      .order('published_timestamp', { ascending: false });
+      .order('published_timestamp', { ascending: false })
+      .limit(100);
 
     if (error) {
-      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+      console.error("Database fetch error:", error);
+      return NextResponse.json({ error: 'Failed to fetch articles' }, { status: 500 });
     }
 
-    return NextResponse.json({ articles: data || [] });
+    // Return the articles to the frontend!
+    return NextResponse.json(articles || []);
+    
+  } catch (err) {
+    console.error("Unexpected API error:", err);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
-
-  // Curated: is_noise = false, sorted by sentiment score
-  const { data, error } = await supabase
-    .from('articles')
-    .select('*')
-    .eq('is_noise', false)
-    .gte('published_timestamp', minTimestamp);
-
-  if (error) {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
-
-  const articles = (data || []).map((a) => {
-    let score = 0;
-    if (a.user_rating === 'positive') score = 2;
-    else if (a.user_rating === 'negative') score = -2;
-    return { ...a, _score: score };
-  });
-
-  articles.sort((a, b) => {
-    if (b._score !== a._score) return b._score - a._score;
-    return b.published_timestamp - a.published_timestamp;
-  });
-
-  const result = articles.map(({ _score, ...rest }) => rest);
-  return NextResponse.json({ articles: result });
 }

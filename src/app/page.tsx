@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import NewsCard from '@/components/NewsCard';
 import CategoryTabs from '@/components/CategoryTabs';
 import BlockPhraseInput from '@/components/BlockPhraseInput';
+import { createClient } from '@/lib/supabase-client';
 import { isBlockedArticle } from '@/lib/block-filter';
 import type { Article } from '@/components/NewsCard';
 import type { Category } from '@/scraper/config';
@@ -142,6 +144,8 @@ function FeedTabSwitcher({ active, onChange, curatedCount, allCount, language, o
 }
 
 export default function Home() {
+  const router = useRouter(); 
+
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [language, setLanguage] = useState<'all' | 'en' | 'hi'>('all');
@@ -151,6 +155,21 @@ export default function Home() {
   const [page, setPage] = useState(1);
   const [isMobile, setIsMobile] = useState(false);
   const predictionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const supabase = createClient();
+
+  // The Auth Guard: Check if the user is logged in
+  useEffect(() => {
+    const enforceAuth = async () => {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      // If there is no session, boot them to the login page
+      if (!session || error) {
+        router.push('/login');
+      }
+    };
+    
+    enforceAuth();
+  }, [supabase, router]);
 
   // Detect viewport
   useEffect(() => {
@@ -160,35 +179,68 @@ export default function Home() {
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  // Fetch ALL articles once (tab-independent) so badge counts are always accurate
+  // Fetch articles, blocked phrases, AND user-specific sentiments
   const fetchArticles = useCallback(async () => {
     setLoading(true);
     try {
-      const [articlesRes, blockedRes] = await Promise.all([
-        fetch('/api/articles?tab=all'),
-        fetch('/api/block'),
-      ]);
-      if (articlesRes.ok) {
-        const articlesData = await articlesRes.json();
-        setArticles(articlesData.articles || []);
+      // 1. Authenticate the user securely
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        router.push('/login');
+        return;
       }
-      if (blockedRes.ok) {
-        const blockedData = await blockedRes.json();
-        setBlockedPhrases((blockedData.phrases || []).map((p: { phrase: string }) => p.phrase));
+
+      const userId = session.user.id;
+
+      // 2. Fetch Public Data AND User-Specific Data simultaneously
+      const [feedRes, blockedRes, sentimentRes] = await Promise.all([
+        supabase
+          .from('articles')
+          .select('*')
+          .order('published_timestamp', { ascending: false })
+          .limit(200),
+        supabase.from('blocked_phrases').select('phrase'),
+        supabase
+          .from('user_sentiment')
+          .select('article_id, sentiment')
+          .eq('user_id', userId) // Strictly fetches ONLY this user's sentiments
+      ]);
+
+      if (feedRes.error) {
+        console.error('Articles fetch error:', feedRes.error);
+      } 
+      
+      if (feedRes.data) {
+        // 3. Create a lightning-fast lookup map for the user's ratings
+        const userSentiments = sentimentRes.data || [];
+        const sentimentMap = new Map(userSentiments.map(s => [s.article_id, s.sentiment]));
+
+        // 4. Merge the user's personal ratings into the global news feed
+        const mergedArticles = feedRes.data.map(article => ({
+          ...article,
+          user_rating: sentimentMap.get(article.id) || null
+        }));
+
+        setArticles(mergedArticles as Article[]);
+      }
+
+      if (blockedRes.data) {
+        setBlockedPhrases(blockedRes.data.map((p: { phrase: string }) => p.phrase));
       }
     } catch (err) {
       console.error('Failed to initialize:', err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [supabase, router]);
 
-  // Initial fetch — always fetch the full dataset
+  // Initial fetch
   useEffect(() => {
     fetchArticles();
   }, [fetchArticles]);
 
-  // Tab change — no re-fetch needed, data is already loaded
+  // Tab change
   const handleTabChange = useCallback((tab: FeedTab) => {
     setFeedTab(tab);
     setPage(1);
@@ -217,24 +269,20 @@ export default function Home() {
     };
   }, [articles, schedulePredictions]);
 
+  // Client-side filtering (tab, language, blocked)
   const filtered = useMemo(() => {
     const result = articles.filter((a) => {
-      // In curated tab, hide noise articles
       if (feedTab === 'curated' && a.is_noise) return false;
       if (language !== 'all' && a.language !== language) return false;
       if (feedTab === 'curated' && isBlockedArticle(a.headline, a.synopsis, blockedPhrases)) return false;
       return true;
     });
-
-    // Always sort by recency (newest first)
     return result.sort((a, b) => b.published_timestamp - a.published_timestamp);
   }, [articles, language, blockedPhrases, feedTab]);
 
-  // Count totals — always accurate since articles is the full dataset
   const curatedCount = useMemo(() => articles.filter((a) => !a.is_noise).length, [articles]);
   const allCount = articles.length;
 
-  // Reset page when filters change
   useEffect(() => { setPage(1); }, [language, blockedPhrases, feedTab]);
 
   const perPage = isMobile ? MOBILE_PER_PAGE : DESKTOP_PER_PAGE;
@@ -244,21 +292,68 @@ export default function Home() {
     return filtered.slice(start, start + perPage);
   }, [filtered, page, perPage]);
 
-  const handleRated = useCallback((articleId: string, rating: string | null) => {
+  // Sentiment rating — upsert to user_sentiment, optimistic UI
+  const handleRated = useCallback(async (articleId: string, rating: string | null) => {
     setArticles((prev) =>
       prev.map((a) => (a.id === articleId ? { ...a, user_rating: rating } : a))
     );
-  }, []);
 
-  const handleCategoryCorrected = useCallback((articleId: string, update: { category?: string; is_noise?: boolean }) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      if (rating === null) {
+        // Undo — delete the rating
+        await supabase
+          .from('user_sentiment')
+          .delete()
+          .eq('article_id', articleId)
+          .eq('user_id', user.id);
+      } else {
+        // Upsert the rating
+        await supabase
+          .from('user_sentiment')
+          .upsert(
+            { user_id: user.id, article_id: articleId, sentiment: rating },
+            { onConflict: 'user_id,article_id' }
+          );
+      }
+    } catch (err) {
+      console.error('Failed to rate:', err);
+    }
+  }, [supabase]);
+
+  // Category correction — insert into category_corrections, optimistic UI
+  const handleCategoryCorrected = useCallback(async (articleId: string, update: { category?: string; is_noise?: boolean }) => {
     setArticles((prev) =>
       prev.map((a) => (a.id === articleId ? { ...a, ...update } : a))
     );
-  }, []);
 
-  const handleBlocked = useCallback((phrase: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      await supabase.from('category_corrections').insert({
+        article_id: articleId,
+        user_id: user.id,
+        corrected_category: update.category || null,
+        is_noise: update.is_noise || false,
+      });
+    } catch (err) {
+      console.error('Failed to correct category:', err);
+    }
+  }, [supabase]);
+
+  // Block phrase — insert into blocked_phrases, optimistic UI
+  const handleBlocked = useCallback(async (phrase: string) => {
     setBlockedPhrases((prev) => [...prev, phrase]);
-  }, []);
+
+    try {
+      await supabase.from('blocked_phrases').insert({ phrase });
+    } catch (err) {
+      console.error('Failed to block phrase:', err);
+    }
+  }, [supabase]);
 
   const handleUnblocked = useCallback((phrase: string) => {
     setBlockedPhrases((prev) => prev.filter((p) => p !== phrase));

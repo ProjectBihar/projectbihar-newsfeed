@@ -1,123 +1,152 @@
-/**
- * Unified Pipeline Orchestrator
- *
- * Accepts a unified configuration array, handles both RSS and HTML discovery
- * tracks dynamically, channels all output URLs through the clean text
- * content extractor, and runs geo-fencing + classification before returning
- * the final, fully categorized article queue.
- */
-
-import type { RawArticle } from './types';
 import type { NewsSourceConfig } from './config';
 import { fetchArticleUrlsFromRSS } from './parser-rss';
 import { discoverLinksFromHTMLSection } from './parser-section';
 import { extractCleanArticleText } from './parser-html';
 import { isBiharCentric } from './geo-filter';
-import { classifyArticle, evaluateContentQuality } from './classifier';
 
-/**
- * Run the unified scraping pipeline across all configured sources.
- *
- * Flow:
- * 1. Discover articles via RSS or HTML section crawling
- * 2. Extract clean paragraph text from each article
- * 3. Run geo-fencing — drop non-Bihar articles
- * 4. Classify surviving articles into 8 categories
- * 5. Return fully categorized RawArticle[] queue
- *
- * @param sources - Array of NewsSourceConfig (RSS or HTML section sources)
- * @returns Array of RawArticle objects ready for database insertion
- */
-export async function runUnifiedPipeline(
-  sources: NewsSourceConfig[]
-): Promise<RawArticle[]> {
-  const ingestedArticlesLog: RawArticle[] = [];
+// ── FAIL-SAFE: Advanced Absolute URL Resolver ──
+function resolveUrl(targetUrl: string, baseUrl: string): string {
+  if (!targetUrl) return '';
+  let clean = targetUrl.trim();
+  if (clean.startsWith('undefined')) clean = clean.replace('undefined', '');
+  if (clean.startsWith('//')) return 'https:' + clean; // Catch protocol-relative links
+  try {
+    return new URL(clean, baseUrl).href;
+  } catch (e) {
+    return baseUrl.replace(/\/$/, '') + '/' + clean.replace(/^\//, '');
+  }
+}
+
+// ── FAIL-SAFE: Timeout Wrapper for Metadata Fetches ──
+async function fetchWithTimeout(url: string, ms = 4000): Promise<string | null> {
+  try {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), ms);
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+      signal: controller.signal
+    });
+    clearTimeout(id);
+    if (!res.ok) return null;
+    return await res.text();
+  } catch (e) {
+    return null; // Fail gracefully
+  }
+}
+
+// ── METADATA EXTRACTOR ──
+async function peekArticleMetadata(url: string) {
+  const result: { publishedAt: Date | null; title: string | null } = { publishedAt: null, title: null };
+  const html = await fetchWithTimeout(url);
+  if (!html) return result;
+  
+  const titleMatch = html.match(/<meta[^>]+(?:property|name)=["'](?:og:title|twitter:title|title)["'][^>]+content=["']([^"']+)["']/i) || html.match(/<title[^>*]>([^<]+)<\/title>/i);
+  if (titleMatch && titleMatch[1]) result.title = titleMatch[1].replace(/&amp;/g, '&').replace(/&quot;/g, '"').trim();
+
+  const dateMatch = html.match(/<meta[^>]+(?:property|name)=["'](?:article:published_time|datePublished|pubdate)["'][^>]+content=["']([^"']+)["']/i) || html.match(/<time[^>]+datetime=["']([^"']+)["']/i);
+  if (dateMatch && dateMatch[1]) {
+    const parsed = new Date(dateMatch[1]);
+    if (!isNaN(parsed.getTime())) result.publishedAt = parsed;
+  }
+  return result;
+}
+
+export async function runUnifiedPipeline(sources: NewsSourceConfig[]): Promise<any[]> {
+  const ingestedArticlesLog: any[] = [];
+  const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+  const now = Date.now();
 
   for (const source of sources) {
-    console.log(
-      `\n▶ [Pipeline] Launching discovery track for: ${source.sourceName}`
-    );
-
+    console.log(`\n▶ [Pipeline] Launching discovery track for: ${source.sourceName}`);
     let candidateUrls: string[] = [];
+    const urlDateMap = new Map<string, Date>();
+    const urlTitleMap = new Map<string, string>(); 
+    const baseUrl = new URL(source.targetUrl).origin;
 
-    // Track Dynamic Branching
-    if (source.discoveryType === 'rss') {
-      const rssItems = await fetchArticleUrlsFromRSS([source.targetUrl]);
-      candidateUrls = rssItems.map((item) => item.link);
-    } else if (source.discoveryType === 'html_section') {
-      candidateUrls = await discoverLinksFromHTMLSection(source);
+    try {
+      if (source.discoveryType === 'rss') {
+        const rssItems = await fetchArticleUrlsFromRSS([source.targetUrl]);
+        candidateUrls = rssItems.map(item => item.link).filter(Boolean);
+        for (const item of rssItems) {
+          if (!item.link) continue;
+          urlDateMap.set(item.link, item.pubDate);
+          if ((item as any).title) urlTitleMap.set(item.link, (item as any).title);
+        }
+      } else {
+        const rawLinks = await discoverLinksFromHTMLSection(source);
+        candidateUrls = rawLinks.map(u => resolveUrl(u, baseUrl));
+      }
+    } catch (err: any) {
+      console.error(`  [Pipeline Error] Discovery failed for ${source.sourceName}, moving to next source.`);
+      continue; 
     }
 
-    // Remove duplicates found inside the same engine pass
     const executionQueue = Array.from(new Set(candidateUrls));
-    console.log(
-      `  [DISCOVER] ${executionQueue.length} potential articles for ${source.sourceName}`
-    );
-
-    if (executionQueue.length === 0) continue;
-
-    // Sequential extraction → geo-fence → classify loop
-    let extracted = 0;
-    let geoPassed = 0;
-
+    
     for (let index = 0; index < executionQueue.length; index++) {
       const url = executionQueue[index];
-      console.log(
-        `   [Processing] Article ${index + 1}/${executionQueue.length} — URL: ${url.substring(0, 50)}...`
-      );
+      if (!url) continue;
 
-      // Mandatory 2-second delay to shield our runner IP
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // The 2026 Year Guillotine
+      if (url.match(/\/(19\d{2}|201\d|202[0-5])\//)) {
+        continue;
+      }
+      
+      let titleGuess = urlTitleMap.get(url);
+      let publishedAt = urlDateMap.get(url);
+
+      // Meta-Tag Fallback
+      if (!titleGuess || !publishedAt || (now - publishedAt.getTime() < 3600000)) {
+        const liveMeta = await peekArticleMetadata(url);
+        if (liveMeta.title) titleGuess = liveMeta.title;
+        if (liveMeta.publishedAt) publishedAt = liveMeta.publishedAt;
+      }
+
+      // URL String Parsing Fallback
+      if (!titleGuess) {
+        const segments = url.split('?')[0].replace(/\/$/, '').split('/');
+        for (let i = segments.length - 1; i >= 0; i--) {
+          let seg = segments[i].replace(/\.\w+$/, '').replace(/[-_]/g, ' ').trim();
+          if (/[a-zA-Z]/.test(seg) && !/^article\d*$/i.test(seg) && seg.length > 3) {
+            titleGuess = seg;
+            break;
+          }
+        }
+      }
+
+      const displayTitle = (titleGuess || 'Untitled Article').substring(0, 100);
+      console.log(`   [Processing] ${index + 1}/${executionQueue.length} — ${displayTitle}...`);
+
+      if (!publishedAt || (now - publishedAt.getTime() > SEVEN_DAYS_MS)) {
+        continue; 
+      }
 
       try {
-        const bodyText = await extractCleanArticleText(url);
+        const bodyText = await Promise.race([
+          extractCleanArticleText(url),
+          new Promise<null>((_, r) => setTimeout(() => r(new Error('Timeout')), 8000))
+        ]);
 
         if (!bodyText || bodyText.trim().length <= 100) continue;
+        if (!isBiharCentric(titleGuess || '', bodyText)) continue;
 
-        extracted++;
+        // Auto-detect Hindi vs English sources for the frontend filter
+        const isHindi = /(bbc news hindi|prabhat khabar|live hindustan|dainik bhaskar|main media)/i.test(source.sourceName);
 
-        // Use URL slug as a rough title if RSS didn't provide one
-        const titleGuess = url
-          .split('/')
-          .pop()
-          ?.replace(/[-_]/g, ' ')
-          ?.replace(/\.\w+$/, '') || '';
-
-        // ── Geo-Fencing Gate ──
-        if (!isBiharCentric(titleGuess, bodyText)) {
-          // Silent drop — not Bihar-relevant
-          continue;
-        }
-
-        geoPassed++;
-
-        // ── Matrix Classification ──
-        const category = classifyArticle(titleGuess, bodyText);
-
-        // ── Content Quality Evaluation ──
-        const isNoise = evaluateContentQuality(titleGuess, bodyText);
-
+        // Map strictly to expected schema with absolute fallbacks to prevent Database NULL crashes
         ingestedArticlesLog.push({
-          title: titleGuess,
-          sourceUrl: url,
-          publishedAt: new Date(),
-          rssSummary: '',
-          fullContent: bodyText,
-          sourceName: source.sourceName,
-          category,
-          isNoise,
+          headline: titleGuess || 'Untitled Article',
+          url: url,
+          synopsis: (bodyText.split('\n')[0] || 'No synopsis available.').substring(0, 250),
+          source: source.sourceName,
+          published_timestamp: publishedAt.getTime(),
+          language: isHindi ? 'hi' : 'en'
         });
+
       } catch (err: any) {
-        console.error(
-          `  [Pipeline Error] Extraction failed for ${url}: ${err.message}`
-        );
+        // Silently skip failed extractions to keep the master pipeline moving
       }
     }
-
-    console.log(
-      `  [DONE] ${source.sourceName}: ${geoPassed}/${extracted} passed geo-fence (${executionQueue.length} discovered)`
-    );
   }
-
   return ingestedArticlesLog;
 }
