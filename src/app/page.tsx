@@ -214,12 +214,12 @@ export default function Home() {
       if (feedRes.data) {
         // 3. Create a lightning-fast lookup map for the user's ratings
         const userSentiments = sentimentRes.data || [];
-        const sentimentMap = new Map(userSentiments.map(s => [s.article_id, s.sentiment]));
+        const sentimentMap = new Map(userSentiments.map((s: { article_id: string; sentiment: string }) => [s.article_id, s.sentiment]));
 
         // 4. Merge the user's personal ratings into the global news feed
-        const mergedArticles = feedRes.data.map(article => ({
+        const mergedArticles = feedRes.data.map((article: Record<string, unknown>) => ({
           ...article,
-          user_rating: sentimentMap.get(article.id) || null
+          user_rating: sentimentMap.get(article.id as string) || null
         }));
 
         setArticles(mergedArticles as Article[]);

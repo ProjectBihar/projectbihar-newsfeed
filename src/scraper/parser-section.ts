@@ -25,6 +25,7 @@ export async function discoverLinksFromHTMLSection(
   source: NewsSourceConfig
 ): Promise<string[]> {
   const verifiedArticleUrls = new Set<string>();
+  const baseDomain = new URL(source.targetUrl).origin;
 
   try {
     const response = await axios.get(source.targetUrl, {
@@ -47,13 +48,13 @@ export async function discoverLinksFromHTMLSection(
 
       // Rule 1: Normalize Relative Paths
       if (href.startsWith('/')) {
-        href = `${source.baseDomain}${href}`;
+        href = `${baseDomain}${href}`;
       }
 
       // Rule 2: Enforce Domain Boundary
-      if (!href.startsWith(source.baseDomain)) return;
+      if (!href.startsWith(baseDomain)) return;
 
-      const pathLower = href.replace(source.baseDomain, '').toLowerCase();
+      const pathLower = href.replace(baseDomain, '').toLowerCase();
 
       // Rule 3: Structural SEO Analysis
       const hyphenCount = (pathLower.match(/-/g) || []).length;
