@@ -1,7 +1,7 @@
 name: Scrape Bihar News
 on:
   schedule:
-    - cron: '0 * * * *'   # Every hour
+    - cron: '23 * * * *'   # Every hour at :23 past (off-peak)
   workflow_dispatch:           # Manual trigger button
 concurrency:
   group: scrape

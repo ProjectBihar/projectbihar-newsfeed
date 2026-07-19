@@ -98,6 +98,19 @@ export default function Header({ totalArticles, onRefresh }: Props) {
     setTimeout(() => setRefreshing(false), 1500);
   }, [onRefresh, refreshing]);
 
+  const handleLogout = useCallback(async () => {
+    try {
+      // 1. Best-effort client-side sign out (may fail if session expired)
+      await supabase.auth.signOut().catch(() => {});
+      // 2. Clear server-side cookies
+      await fetch('/auth/logout', { method: 'POST' }).catch(() => {});
+    } catch {
+      // ignore
+    }
+    // 3. Always redirect — even if sign out failed, force a clean state
+    window.location.href = '/login';
+  }, [supabase]);
+
   const userInitial = user?.email?.charAt(0).toUpperCase() || null;
 
   return (
@@ -193,22 +206,20 @@ export default function Header({ totalArticles, onRefresh }: Props) {
                       <div className="px-3 py-1.5 text-[11px] truncate" style={{ color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
                         {user.email}
                       </div>
-                      <form action="/auth/logout" method="POST">
-                        <button
-                          type="submit"
-                          role="menuitem"
-                          className="block w-full text-left px-3 py-1.5 text-[12px] font-medium hover:bg-[var(--border)] transition-colors"
-                          style={{ color: 'var(--ink)' }}
-                        >
-                          Logout
-                        </button>
-                      </form>
+                      <button
+                        onClick={handleLogout}
+                        role="menuitem"
+                        className="block w-full text-left px-3 py-1.5 text-[12px] font-medium hover:bg-[var(--border)] transition-colors"
+                        style={{ color: 'var(--ink)' }}
+                      >
+                        Logout
+                      </button>
                     </div>
                   )}
                 </div>
               ) : (
                 <Link
-                  href="/auth/login"
+                  href="/login"
                   className="glass-pill px-3 py-1.5 rounded-lg text-[12px] font-medium"
                   style={{ color: 'var(--accent)' }}
                 >
@@ -259,22 +270,20 @@ export default function Header({ totalArticles, onRefresh }: Props) {
                       <div className="px-3 py-1.5 text-[11px] truncate" style={{ color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
                         {user.email}
                       </div>
-                      <form action="/auth/logout" method="POST">
-                        <button
-                          type="submit"
-                          role="menuitem"
-                          className="block w-full text-left px-3 py-1.5 text-[12px] font-medium hover:bg-[var(--border)] transition-colors"
-                          style={{ color: 'var(--ink)' }}
-                        >
-                          Logout
-                        </button>
-                      </form>
+                      <button
+                        onClick={handleLogout}
+                        role="menuitem"
+                        className="block w-full text-left px-3 py-1.5 text-[12px] font-medium hover:bg-[var(--border)] transition-colors"
+                        style={{ color: 'var(--ink)' }}
+                      >
+                        Logout
+                      </button>
                     </div>
                   )}
                 </div>
               ) : (
                 <Link
-                  href="/auth/login"
+                  href="/login"
                   className="glass-pill px-2 py-1 rounded-lg text-[11px] font-medium"
                   style={{ color: 'var(--accent)' }}
                 >

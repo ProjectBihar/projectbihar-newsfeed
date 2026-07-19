@@ -9,7 +9,7 @@ export default function AuthCodeError() {
           Something went wrong during sign-in. Please try again.
         </p>
         <Link
-          href="/auth/login"
+          href="/login"
           className="inline-block px-6 py-2.5 rounded-lg text-sm font-medium text-white"
           style={{ backgroundColor: 'var(--accent)' }}
         >

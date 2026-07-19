@@ -29,6 +29,13 @@ function checkRateLimit(ip: string): boolean {
 }
 
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Skip ALL middleware for logout — let the route handler clear cookies cleanly
+  if (pathname === '/auth/logout') {
+    return NextResponse.next({ request });
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   });
@@ -68,8 +75,6 @@ export async function middleware(request: NextRequest) {
 
   // Refresh session
   const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-  const { pathname } = request.nextUrl;
 
   // Allow public routes (read-only endpoints with public RLS)
   if (
