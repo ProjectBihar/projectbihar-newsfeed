@@ -1,8 +1,10 @@
 import type { NewsSourceConfig } from './config';
 import { fetchArticleUrlsFromRSS } from './parser-rss';
 import { discoverLinksFromHTMLSection } from './parser-section';
+import { fetchFromWPApi } from './parser-wp-api';
 import { extractCleanArticleText } from './parser-html';
 import { isBiharCentric } from './geo-filter';
+import { analyzeArticle } from './categorizer';
 
 // ── FAIL-SAFE: Advanced Absolute URL Resolver ──
 function resolveUrl(targetUrl: string, baseUrl: string): string {
@@ -23,7 +25,11 @@ async function fetchWithTimeout(url: string, ms = 4000): Promise<string | null> 
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), ms);
     const res = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5'
+      },
       signal: controller.signal
     });
     clearTimeout(id);
@@ -60,7 +66,8 @@ export async function runUnifiedPipeline(sources: NewsSourceConfig[]): Promise<a
     console.log(`\n▶ [Pipeline] Launching discovery track for: ${source.sourceName}`);
     let candidateUrls: string[] = [];
     const urlDateMap = new Map<string, Date>();
-    const urlTitleMap = new Map<string, string>(); 
+    const urlTitleMap = new Map<string, string>();
+    const urlContentMap = new Map<string, string>(); // RSS full content cache
     const baseUrl = new URL(source.targetUrl).origin;
 
     try {
@@ -71,6 +78,16 @@ export async function runUnifiedPipeline(sources: NewsSourceConfig[]): Promise<a
           if (!item.link) continue;
           urlDateMap.set(item.link, item.pubDate);
           if ((item as any).title) urlTitleMap.set(item.link, (item as any).title);
+          if (item.content) urlContentMap.set(item.link, item.content);
+        }
+      } else if (source.discoveryType === 'wp_api') {
+        const wpItems = await fetchFromWPApi(source.targetUrl);
+        candidateUrls = wpItems.map(item => item.link).filter(Boolean);
+        for (const item of wpItems) {
+          if (!item.link) continue;
+          urlDateMap.set(item.link, item.pubDate);
+          if (item.title) urlTitleMap.set(item.link, item.title);
+          if (item.content) urlContentMap.set(item.link, item.content);
         }
       } else {
         const rawLinks = await discoverLinksFromHTMLSection(source);
@@ -122,29 +139,46 @@ export async function runUnifiedPipeline(sources: NewsSourceConfig[]): Promise<a
       }
 
       try {
-        const bodyText = await Promise.race([
-          extractCleanArticleText(url),
-          new Promise<null>((_, r) => setTimeout(() => r(new Error('Timeout')), 8000))
-        ]);
+        // Use RSS content when available, otherwise fetch the page
+        let bodyText = urlContentMap.get(url) || null;
 
-        if (!bodyText || bodyText.trim().length <= 100) continue;
-        if (!isBiharCentric(titleGuess || '', bodyText)) continue;
+        if (!bodyText) {
+          bodyText = await Promise.race([
+            extractCleanArticleText(url),
+            new Promise<null>((_, r) => setTimeout(() => r(new Error('Extraction Timeout')), 8000))
+          ]);
+        }
 
-        // Auto-detect Hindi vs English sources for the frontend filter
-        const isHindi = /(bbc news hindi|prabhat khabar|live hindustan|dainik bhaskar|main media)/i.test(source.sourceName);
+        if (!bodyText || bodyText.trim().length <= 100) {
+          console.log(`   [Drop] Content too short or blocked: ${url}`);
+          continue;
+        }
+        if (!isBiharCentric(titleGuess || '', bodyText)) {
+          console.log(`   [Drop] Failed Geo-Filter (Not Bihar): ${url}`);
+          continue;
+        }
 
-        // Map strictly to expected schema with absolute fallbacks to prevent Database NULL crashes
+        // Universal language detection: checks for actual Hindi Devanagari characters
+        const isHindi = /[\u0900-\u097F]/.test(bodyText || titleGuess || '');
+
+        // Run the pragmatic 85% engine: categorize + noise detect in one pass
+        const analysis = analyzeArticle(titleGuess || '', bodyText);
+
+        // Map strictly to expected schema
         ingestedArticlesLog.push({
           headline: titleGuess || 'Untitled Article',
           url: url,
           synopsis: (bodyText.split('\n')[0] || 'No synopsis available.').substring(0, 250),
           source: source.sourceName,
           published_timestamp: publishedAt.getTime(),
-          language: isHindi ? 'hi' : 'en'
+          ingested_at: now,
+          language: isHindi ? 'hi' : 'en',
+          category: analysis.category || 'governance',
+          is_noise: analysis.is_noise
         });
 
       } catch (err: any) {
-        // Silently skip failed extractions to keep the master pipeline moving
+        console.warn(`   [Error] Failed to process ${url}: ${err.message}`);
       }
     }
   }

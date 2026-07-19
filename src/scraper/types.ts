@@ -19,4 +19,5 @@ export interface RSSFeedItem {
   link: string;
   pubDate: Date;
   summary: string;
+  content?: string; // Full article content from <content:encoded> when available
 }

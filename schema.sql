@@ -4,14 +4,15 @@
 -- 1. Articles table — only grows, never deleted
 CREATE TABLE IF NOT EXISTS articles (
   id TEXT PRIMARY KEY,                        -- SHA-256 hash of normalized URL (first 16 chars)
-  url TEXT NOT NULL,
+  url TEXT NOT NULL CONSTRAINT articles_url_key UNIQUE,
   headline TEXT NOT NULL,
   synopsis TEXT,
   source TEXT NOT NULL,                        -- e.g. "The Hindu", "Dainik Jagran"
   language TEXT NOT NULL DEFAULT 'en',         -- 'en' or 'hi'
   category TEXT NOT NULL CHECK (category IN (
     'economy', 'infrastructure', 'industry',
-    'agriculture', 'education', 'healthcare', 'environment'
+    'agriculture', 'education', 'healthcare', 'environment',
+    'governance'
   )),
   published_timestamp BIGINT NOT NULL,         -- IST epoch ms (actual publish date)
   ingested_at BIGINT NOT NULL,                 -- when scraper found it

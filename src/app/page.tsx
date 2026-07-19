@@ -152,6 +152,7 @@ export default function Home() {
   const [blockedPhrases, setBlockedPhrases] = useState<string[]>([]);
   const [predictions, setPredictions] = useState<Record<string, Prediction>>({});
   const [feedTab, setFeedTab] = useState<FeedTab>('curated');
+  const [activeCategory, setActiveCategory] = useState<Category | 'all'>('all');
   const [page, setPage] = useState(1);
   const [isMobile, setIsMobile] = useState(false);
   const predictionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -269,21 +270,36 @@ export default function Home() {
     };
   }, [articles, schedulePredictions]);
 
-  // Client-side filtering (tab, language, blocked)
+  // Client-side filtering engine
   const filtered = useMemo(() => {
     const result = articles.filter((a) => {
-      if (feedTab === 'curated' && a.is_noise) return false;
+      // Global Filter: Language applies to both tabs
       if (language !== 'all' && a.language !== language) return false;
-      if (feedTab === 'curated' && isBlockedArticle(a.headline, a.synopsis, blockedPhrases)) return false;
+
+      if (feedTab === 'curated') {
+        // STRICT MODE: Hide Noise and Blocked Phrases
+        if (a.is_noise) return false;
+        if (isBlockedArticle(a.headline, a.synopsis, blockedPhrases)) return false;
+
+        // Category filtering (Tabs are only visible in curated mode)
+        if (activeCategory !== 'all') {
+          const dbCategory = String(a.category || '').toLowerCase();
+          const uiCategory = String(activeCategory).toLowerCase();
+          if (dbCategory !== uiCategory) return false;
+        }
+      }
+      // In 'all' (All News) mode, we return true to show everything, ignoring categories and noise flags.
+
       return true;
     });
+
     return result.sort((a, b) => b.published_timestamp - a.published_timestamp);
-  }, [articles, language, blockedPhrases, feedTab]);
+  }, [articles, language, blockedPhrases, feedTab, activeCategory]);
 
   const curatedCount = useMemo(() => articles.filter((a) => !a.is_noise).length, [articles]);
   const allCount = articles.length;
 
-  useEffect(() => { setPage(1); }, [language, blockedPhrases, feedTab]);
+  useEffect(() => { setPage(1); }, [language, blockedPhrases, feedTab, activeCategory]);
 
   const perPage = isMobile ? MOBILE_PER_PAGE : DESKTOP_PER_PAGE;
   const totalPages = Math.ceil(filtered.length / perPage);
@@ -323,24 +339,57 @@ export default function Home() {
     }
   }, [supabase]);
 
-  // Category correction — insert into category_corrections, optimistic UI
+  // Category correction — intercept 'noise' to avoid DB constraint violation
   const handleCategoryCorrected = useCallback(async (articleId: string, update: { category?: string; is_noise?: boolean }) => {
+
+    let finalCategory = update.category ? update.category.toLowerCase() : undefined;
+    let finalIsNoise: boolean | undefined = update.is_noise;
+
+    // THE ROUTER: Handle Noise vs. Real Categories
+    if (finalCategory === 'noise') {
+      finalCategory = undefined; // Don't send "noise" to the category column
+      finalIsNoise = true;       // Turn on the noise flag
+    } else if (finalCategory) {
+      // THE RESCUE OPERATION:
+      // If a user selects a valid category, explicitly revoke the noise status
+      finalIsNoise = false;
+    }
+
+    // Optimistic UI Update
     setArticles((prev) =>
-      prev.map((a) => (a.id === articleId ? { ...a, ...update } : a))
+      prev.map((a) => {
+        if (a.id !== articleId) return a;
+        return {
+          ...a,
+          ...(finalCategory && { category: finalCategory }),
+          ...(finalIsNoise !== undefined && { is_noise: finalIsNoise })
+        };
+      })
     );
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Log it for the AI model
       await supabase.from('category_corrections').insert({
         article_id: articleId,
         user_id: user.id,
-        corrected_category: update.category || null,
-        is_noise: update.is_noise || false,
+        corrected_category: finalCategory || null,
+        is_noise: finalIsNoise || false,
       });
+
+      // Update the master database
+      const updatePayload: any = {};
+      if (finalCategory) updatePayload.category = finalCategory;
+      if (finalIsNoise !== undefined) updatePayload.is_noise = finalIsNoise; // Can now explicitly send 'false'
+
+      if (Object.keys(updatePayload).length > 0) {
+        await supabase.from('articles').update(updatePayload).eq('id', articleId);
+      }
+
     } catch (err) {
-      console.error('Failed to correct category:', err);
+      console.error('Failed to correct category or mark as noise:', err);
     }
   }, [supabase]);
 
@@ -395,7 +444,8 @@ export default function Home() {
 
         {feedTab === 'curated' && (
           <CategoryTabs
-            active="all"
+            active={activeCategory}
+            onChange={setActiveCategory}
             currentTab={feedTab}
           />
         )}

@@ -34,7 +34,7 @@ async function main() {
       const batch = articles.slice(i, i + BATCH_SIZE);
       const { error } = await supabase
         .from('articles')
-        .upsert(batch, { onConflict: 'url' });
+        .upsert(batch, { onConflict: 'url', ignoreDuplicates: true });
 
       if (error) {
         console.error(`\n❌ [Database Error] Batch ${i/BATCH_SIZE + 1} failed:`, error.message);
@@ -50,4 +50,10 @@ async function main() {
   }
 }
 
-main();
+main().then(() => {
+  console.log('\n🛑 Task complete. Closing database connections and exiting process...');
+  process.exit(0);
+}).catch((err) => {
+  console.error('\n❌ Unhandled rejection in main:', err);
+  process.exit(1);
+});

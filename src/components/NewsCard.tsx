@@ -63,7 +63,7 @@ function NewsCard({ article, prediction, onRated, onCategoryCorrected }: Props) 
 
       {/* Category badge + correction button */}
       <div className="flex items-center gap-2 mb-3">
-        {cat && (
+        {cat && !article.is_noise && (
           <span
             className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider"
             style={{

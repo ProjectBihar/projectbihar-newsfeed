@@ -38,7 +38,7 @@ export const CATEGORY_DISPLAY: Record<Category, string> = {
 export interface NewsSourceConfig {
   sourceName: string;
   targetUrl: string;
-  discoveryType: 'rss' | 'html_section';
+  discoveryType: 'rss' | 'html_section' | 'wp_api';
 }
 
 export const SCRAPER_SOURCES: NewsSourceConfig[] = [
@@ -53,10 +53,10 @@ export const SCRAPER_SOURCES: NewsSourceConfig[] = [
     targetUrl: 'https://www.thehindu.com/news/national/feeder/default.rss', 
     discoveryType: 'rss' 
   },
-  { 
-    sourceName: 'The Print', 
-    targetUrl: 'https://theprint.in/feed/', 
-    discoveryType: 'rss' 
+  {
+    sourceName: 'The Print',
+    targetUrl: 'https://theprint.in/wp-json/wp/v2/posts',
+    discoveryType: 'wp_api'
   },
   { 
     sourceName: 'The Economic Times', 
@@ -70,10 +70,10 @@ export const SCRAPER_SOURCES: NewsSourceConfig[] = [
   },
 
   // ── Independent & Alternative Media ──
-  { 
-    sourceName: 'Scroll.in', 
-    targetUrl: 'https://scroll.in/feed', 
-    discoveryType: 'rss' 
+  {
+    sourceName: 'Scroll.in',
+    targetUrl: 'https://scroll.in/',
+    discoveryType: 'html_section'
   },
   { 
     sourceName: 'Newslaundry', 
@@ -82,8 +82,8 @@ export const SCRAPER_SOURCES: NewsSourceConfig[] = [
   },
   { 
     sourceName: 'Main Media', 
-    targetUrl: 'https://mainmedia.in/feed/', 
-    discoveryType: 'rss' 
+    targetUrl: 'https://mainmedia.in/', 
+    discoveryType: 'html_section' 
   },
 
   // ── Hindi & Regional Bihar Media ──
@@ -92,21 +92,20 @@ export const SCRAPER_SOURCES: NewsSourceConfig[] = [
     targetUrl: 'https://feeds.bbci.co.uk/hindi/rss.xml', 
     discoveryType: 'rss' 
   },
-  { 
-    sourceName: 'Patna Press', 
-    targetUrl: 'https://patnapress.com/feed/', 
-    discoveryType: 'rss' 
+  {
+    sourceName: 'Patna Press',
+    targetUrl: 'https://patnapress.com/feed/',
+    discoveryType: 'rss'
   },
-  { 
-    sourceName: 'Live Hindustan Bihar', 
-    targetUrl: 'https://www.livehindustan.com/bihar/rss/', 
-    discoveryType: 'rss' 
+  {
+    sourceName: 'Live Hindustan Bihar',
+    targetUrl: 'https://www.livehindustan.com/bihar/',
+    discoveryType: 'html_section'
   },
-  { 
-    // Using HTML discovery because regional RSS feeds often break
-    sourceName: 'Prabhat Khabar Bihar', 
-    targetUrl: 'https://www.prabhatkhabar.com/state/bihar', 
-    discoveryType: 'html_section' 
+  {
+    sourceName: 'Prabhat Khabar Bihar',
+    targetUrl: 'https://www.prabhatkhabar.com/feed/',
+    discoveryType: 'rss'
   },
   { 
     // Using HTML discovery for better accuracy

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import Script from 'next/script';
 import './globals.css';
 import BlockPhraseDialogWrapper from '@/components/BlockPhraseDialogWrapper';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -44,7 +45,9 @@ export default function RootLayout({
           </ErrorBoundary>
         </main>
         <BlockPhraseDialogWrapper />
-        <script
+        <Script
+          id="pwa-scripts"
+          strategy="afterInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               // Lock screen orientation to portrait when possible (PWA fullscreen)

@@ -43,6 +43,7 @@ export async function fetchArticleUrlsFromRSS(
             link: item.link,
             pubDate: pubDate,
             summary: item.contentSnippet || '',
+            content: item['content:encoded'] || item.content || undefined,
           });
         }
       }

@@ -58,7 +58,47 @@ export async function extractCleanArticleText(url: string): Promise<string | nul
     // Structural fallback if no clean <p> text was captured (regional layout support)
     if (!cleanText.trim()) {
       console.warn(`  [Parser] No <p> text for ${url}, trying structural fallback...`);
-      $('article, div[class*="content"], div[class*="body"], div[class*="story"]').each(
+
+      // Expanded Ultimate Regional Selector Matrix
+      const fallbackSelectors = [
+        // 1. Semantic HTML5
+        'article',
+        'main',
+
+        // 2. Generic News Classes
+        'div[class*="content"]',
+        'div[class*="body"]',
+        'div[class*="story"]',
+        'div[class*="article"]',
+        '.article-content',
+        '.article-body',
+        '.story-body',
+        '.story-content',
+
+        // 3. Popular Regional WP Themes (TagDiv, JNews, Sahifa, Publisher)
+        '.tdb-block-inner',
+        '.td-post-content',
+        '.entry-content',
+        '.post-content',
+        '.jeg_post_content',
+        '.single-post-content',
+        '.entry',
+
+        // 4. Page Builders (Elementor, WPBakery)
+        '.elementor-widget-text-editor',
+        '.wpb_text_column',
+
+        // 5. Indian CMS Specific (Quintype, Hocalwire, Custom React setups)
+        '.story-details',
+        '.detail-text',
+        '.news-cont',
+        '.articleBody',
+        '#articleBody',
+        '.qt-article',
+        '.story-element'
+      ].join(', ');
+
+      $(fallbackSelectors).each(
         (_, element) => {
           const text = $(element).text().trim();
           if (text.length > 30) {
