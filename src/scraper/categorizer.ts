@@ -97,10 +97,67 @@ const PHRASE_MATRIX: [string, string, number][] = [
   ['इंडस्ट्रियल कॉरिडोर', 'industry', 45],
   ['food processing', 'industry', 40],
   ['फूड प्रोसेसिंग', 'industry', 40],
+  // Election administration phrases (governance, not campaign)
+  ['चुनाव आयोग', 'governance', 40],
+  ['Election Commission', 'governance', 40],
+  ['मतदान केंद्र', 'governance', 30],
+  ['polling station', 'governance', 30],
+  ['EVM', 'governance', 40],
+  ['वोटर लिस्ट', 'governance', 30],
+  ['voter list', 'governance', 30],
+  ['मतगणना', 'governance', 40],
+  ['counting', 'governance', 25],
+  ['नामांकन पत्र', 'governance', 30],
+  ['nomination', 'governance', 30],
 ];
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 5. WEIGHTED CATEGORY MATRIX (v2 — 3-tier weights)
+// 5. CAMPAIGN DETECTION — Bilingual stems and phrases
+// Campaign news = election strategy, booth management, vote mobilization.
+// NOT governance (policy, legislation, administration).
+// ══════════════════════════════════════════════════════════════════════════════
+const CAMPAIGN_STEMS: [string, number][] = [
+  // Strong (20) — almost always campaign context
+  ['प्रचार', 20], ['प्रचारक', 20], ['रोडशो', 20], ['बूथ', 20], ['मतदाता', 20],
+  ['उम्मीदवार', 20], ['प्रत्याशी', 20], ['कैंपेन', 20], ['स्ट्रेटजी', 20],
+  ['canvass', 20], ['stump', 20], ['roadshow', 20], ['polling', 20], ['booth', 20],
+  ['voter', 20], ['candidate', 20], ['campaign', 20], ['mobilization', 20],
+  // Standard (10) — common in campaign but also elsewhere
+  ['चुनाव', 10], ['चुनावी', 10], ['रैली', 10], ['वोट', 10], ['जीत', 10],
+  ['हराने', 10], ['जिताने', 10], ['रणनीति', 10], ['सीट', 10],
+  ['election', 10], ['electoral', 10], ['rally', 10], ['vote', 10],
+  ['seat', 10], ['strategy', 10], ['win', 10], ['lose', 10],
+  // Weak (5) — very generic, only contribute in aggregate
+  ['जातीय', 5], ['समीकरण', 5], ['पन्ना', 5],
+  ['caste', 5], ['arithmetic', 5],
+];
+
+const CAMPAIGN_PHRASES: [string, number][] = [
+  // Hindi phrases — high confidence campaign signals
+  ['शक्ति केंद्र', 30], ['बूथ प्रबंधन', 30], ['बूथ स्तर', 30],
+  ['चुनावी रणनीति', 30], ['वोट बैंक', 30], ['जातीय समीकरण', 30],
+  ['सामाजिक समीकरण', 30], ['जाति देखकर', 30], ['घर घर संपर्क', 30],
+  ['पन्ना प्रमुख', 30], ['सीट जीतने', 30], ['सीट बचाने', 30],
+  ['चुनावी गणित', 30], ['मतदाता संपर्क', 30], ['वोट मोबिलाइजेशन', 30],
+  ['चुनाव प्रबंधन', 30], ['प्रचार अभियान', 30],
+  // English phrases — high confidence campaign signals
+  ['booth management', 30], ['poll strategy', 30], ['seat sharing', 30],
+  ['vote bank', 30], ['caste equation', 30], ['caste arithmetic', 30],
+  ['campaign trail', 30], ['door to door', 30], ['voter mobilization', 30],
+  ['election strategy', 30], ['polling booth', 30], ['voter turnout', 30],
+  ['candidate selection', 30], ['seat sharing', 30], ['election campaign', 30],
+];
+
+// Governance override phrases — if present, article is NOT campaign noise.
+// These indicate Election Commission administration, not campaign strategy.
+const GOVERNANCE_OVERRIDES = [
+  'चुनाव आयोग', 'Election Commission', 'मतदान केंद्र', 'polling station',
+  'polling booth', 'EVM', 'वोटर लिस्ट', 'voter list', 'मतगणना', 'counting',
+  'नामांकन पत्र', 'nomination', 'चुनाव अधिकारी', 'election officer',
+];
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 6. WEIGHTED CATEGORY MATRIX (v2 — 3-tier weights)
 //
 // stems:  [keyword, weight] — prefix match (token.startsWith)
 // exact:  [keyword, weight] — exact token match (token ===)
@@ -175,19 +232,21 @@ const CATEGORY_MATRIX: Record<string, { stems: [string, number][], exact: [strin
   governance: {
     stems: [
       ['नीतीश', 40], ['तेजस्वी', 40], ['चिराग', 40], ['सरकार', 10],
-      ['कैबिनेट', 40], ['योजना', 25], ['नीति', 25], ['प्रशासन', 25],
-      ['विधायक', 40], ['सांसद', 40], ['कलेक्टर', 40], ['सचिवालय', 40],
-      ['घोषणा', 10], ['governance', 40], ['policy', 25], ['cabinet', 40],
-      ['government', 10], ['administration', 25], ['municipality', 40],
+      ['कैबिनेट', 40], ['योजना', 25], ['नीति', 40], ['प्रशासन', 40],
+      ['विधायक', 15], ['सांसद', 15], ['कलेक्टर', 40], ['सचिवालय', 40],
+      ['घोषणा', 10], ['governance', 40], ['policy', 40], ['cabinet', 40],
+      ['government', 10], ['administration', 40], ['municipality', 40],
+      ['अधिसूचना', 40], ['शासन', 40], ['विभाग', 25], ['मंजूरी', 40],
+      ['notification', 40], ['department', 25], ['approval', 40],
       // Legislation-specific keywords
       ['विधेयक', 40], ['विधानसभा', 40], ['bills', 40], ['assembly', 40],
       ['legislation', 40], ['पारित', 25], ['passed', 10],
     ],
     exact: [
       ['सीएम', 40], ['डीएम', 40], ['नगर निगम', 40],
-      ['mla', 40], ['mp', 40], ['dm', 40], ['cm', 40],
+      ['mla', 20], ['mp', 20], ['dm', 40], ['cm', 40],
     ],
-    negStems: ['चुनाव प्रचार', 'रैली', 'वोटबैंक'],
+    negStems: ['चुनाव प्रचार', 'वोटबैंक', 'रैली', 'प्रचार', 'रोडशो'],
   },
   industry: {
     stems: [
@@ -280,6 +339,39 @@ export function analyzeArticle(headline: string, synopsis: string): { category: 
     }
   }
 
+  // ── STAGE 2.5: CAMPAIGN DETECTION ──
+  // Detect election campaign strategy articles (booth management, vote mobilization).
+  // These are NOT governance — they're political strategy news = noise.
+  // Uses tiered stems (5/10/20) + high-confidence phrases (+30 each).
+  let campaignScore = 0;
+
+  // Campaign stems — scored against all tokens (headline + synopsis)
+  for (const token of [...headlineTokens, ...synopsisTokens]) {
+    for (const [stem, weight] of CAMPAIGN_STEMS) {
+      if (token.startsWith(stem.toLowerCase())) {
+        campaignScore += weight;
+        break;
+      }
+    }
+  }
+
+  // Campaign phrases — scored against full padded text (same as category phrases)
+  for (const [phrase, weight] of CAMPAIGN_PHRASES) {
+    if (paddedRaw.includes(` ${phrase.toLowerCase()} `)) {
+      campaignScore += weight;
+    }
+  }
+
+  // Governance override — if Election Commission/administration terms present,
+  // reset campaign score to 0. This prevents false positives on governance news
+  // that happens to mention elections (e.g., "चुनाव आयोग ने मतदान केंद्रों की सूची जारी की").
+  for (const override of GOVERNANCE_OVERRIDES) {
+    if (paddedRaw.includes(` ${override.toLowerCase()} `)) {
+      campaignScore = 0;
+      break;
+    }
+  }
+
   // ── STAGE 2.5: PHRASE PRE-MATCHING (NEW) ──
   // One-time bonus per matched phrase. Checked against full padded text.
   const phraseBonus: Record<string, number> = {};
@@ -350,7 +442,19 @@ export function analyzeArticle(headline: string, synopsis: string): { category: 
 
   // Threshold: 10 = minimum meaningful score (one weak keyword).
   if (highestScore < 10) {
+    // No strong category — check if campaign content dominates
+    if (campaignScore >= 30) {
+      return { category: null, is_noise: true };
+    }
     return { category: null, is_noise: false };
+  }
+
+  // ── CAMPAIGN vs CATEGORY DECISION ──
+  // Campaign news becomes noise only when:
+  // 1. Campaign score exceeds the highest category score
+  // 2. Campaign score is at least 30 (meaningful campaign content)
+  if (campaignScore > highestScore && campaignScore >= 30) {
+    return { category: null, is_noise: true };
   }
 
   return { category: bestCategory, is_noise: false };
