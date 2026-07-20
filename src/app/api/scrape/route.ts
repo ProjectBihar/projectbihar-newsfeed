@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
       authHeader === `Bearer ${apiKey}` ||
       queryKey === apiKey;
     if (!valid) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized', debug: { keyLength: apiKey.length } }, { status: 401 });
     }
   }
 
