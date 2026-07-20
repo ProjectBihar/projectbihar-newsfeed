@@ -3,11 +3,6 @@ import { createClient } from '@supabase/supabase-js';
 import { SCRAPER_SOURCES } from '@/scraper/config';
 import { runUnifiedPipeline } from '@/scraper/pipeline';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-);
-
 export async function GET(request: NextRequest) {
   // Protect with API key via header OR query parameter
   const apiKey = process.env.SCRAPER_API_KEY;
@@ -21,6 +16,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
   }
+
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+    process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+  );
 
   const startTime = Date.now();
   
