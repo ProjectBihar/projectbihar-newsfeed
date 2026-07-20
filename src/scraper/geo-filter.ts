@@ -51,6 +51,13 @@ const EXTRA_BIHAR_KEYWORDS: string[] = [
   'chirag',
   'manjhi',
   'kushwaha',
+  // Hindi equivalents for political figures
+  'नीतीश',
+  'तेजस्वी',
+  'सम्राट',
+  'चिराग',
+  'मांझी',
+  'कुशवाहा',
 ];
 
 // Merge all Bihar terms (from geo-data + extras)
