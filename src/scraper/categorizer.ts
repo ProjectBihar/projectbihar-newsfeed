@@ -267,6 +267,19 @@ export function analyzeArticle(headline: string, synopsis: string): { category: 
     return { category: null, is_noise: true };
   }
 
+  // ── STAGE 2.3: ENTERTAINMENT NOISE (Bhojpuri celebrities) ──
+  // Articles about Bhojpuri entertainment celebrities are fetched but marked as noise.
+  // These names appear in headlines about gossip, marriages, controversies — not governance.
+  const ENTERTAINMENT_NOISE = [
+    'पवन सिंह', 'अक्षरा सिंह', 'खेसारी लाल यादव', 'निरहुआ', 'आम्रपाली दुबे',
+    'pawan singh', 'akshara singh', 'khesari lal', 'nirahua', 'amrapali',
+  ];
+  for (const name of ENTERTAINMENT_NOISE) {
+    if (paddedRaw.includes(` ${name.toLowerCase()} `)) {
+      return { category: null, is_noise: true };
+    }
+  }
+
   // ── STAGE 2.5: PHRASE PRE-MATCHING (NEW) ──
   // One-time bonus per matched phrase. Checked against full padded text.
   const phraseBonus: Record<string, number> = {};
