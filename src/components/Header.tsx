@@ -10,19 +10,12 @@ interface Props {
   onRefresh?: () => void;
 }
 
-interface SentimentCounts {
-  positive: number;
-  negative: number;
-  neutral: number;
-}
-
 export default function Header({ totalArticles, onRefresh }: Props) {
   const [dark, setDark] = useState(() => {
     if (typeof window === 'undefined') return false;
     const saved = localStorage.getItem('theme');
     return saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
   });
-  const [counts, setCounts] = useState<SentimentCounts>({ positive: 0, negative: 0, neutral: 0 });
   const [refreshing, setRefreshing] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -47,23 +40,6 @@ export default function Header({ totalArticles, onRefresh }: Props) {
     });
     return () => subscription.unsubscribe();
   }, [supabase]);
-
-  const fetchCounts = useCallback(async () => {
-    try {
-      const res = await fetch('/api/sentiment/counts');
-      const data = await res.json();
-      setCounts((prev) => {
-        if (prev.positive === data.positive && prev.negative === data.negative && prev.neutral === data.neutral) return prev;
-        return data;
-      });
-    } catch {}
-  }, []);
-
-  useEffect(() => {
-    fetchCounts();
-    const interval = setInterval(fetchCounts, 60_000);
-    return () => clearInterval(interval);
-  }, [fetchCounts]);
 
   const toggleTheme = useCallback(() => {
     setDark((prev) => {
@@ -129,18 +105,6 @@ export default function Header({ totalArticles, onRefresh }: Props) {
               <div className="glass-pill flex items-center gap-1 rounded-lg px-2.5 py-1">
                 <span className="text-[13px] font-bold leading-none" style={{ color: 'var(--ink)' }}>{totalArticles}</span>
                 <span className="text-[9px] font-medium uppercase tracking-wider" style={{ color: 'var(--muted)' }}>total</span>
-              </div>
-              <div className="glass-pill flex items-center gap-1 rounded-lg px-2 py-1">
-                <span className="text-[12px] font-bold leading-none" style={{ color: '#34C759' }}>{counts.positive}</span>
-                <span className="text-[9px] font-medium" style={{ color: 'var(--muted)' }}>+</span>
-              </div>
-              <div className="glass-pill flex items-center gap-1 rounded-lg px-2 py-1">
-                <span className="text-[12px] font-bold leading-none" style={{ color: '#FF3B30' }}>{counts.negative}</span>
-                <span className="text-[9px] font-medium" style={{ color: 'var(--muted)' }}>−</span>
-              </div>
-              <div className="glass-pill flex items-center gap-1 rounded-lg px-2 py-1">
-                <span className="text-[12px] font-bold leading-none" style={{ color: '#8E8E93' }}>{counts.neutral}</span>
-                <span className="text-[9px] font-medium" style={{ color: 'var(--muted)' }}>○</span>
               </div>
             </div>
 
@@ -314,18 +278,6 @@ export default function Header({ totalArticles, onRefresh }: Props) {
             <div className="glass-pill flex items-center gap-1 rounded-lg px-2 py-0.5">
               <span className="text-[12px] font-bold leading-none" style={{ color: 'var(--ink)' }}>{totalArticles}</span>
               <span className="text-[8px] font-medium uppercase" style={{ color: 'var(--muted)' }}>total</span>
-            </div>
-            <div className="glass-pill flex items-center gap-0.5 rounded-lg px-1.5 py-0.5">
-              <span className="text-[11px] font-bold leading-none" style={{ color: '#34C759' }}>{counts.positive}</span>
-              <span className="text-[8px]" style={{ color: 'var(--muted)' }}>+</span>
-            </div>
-            <div className="glass-pill flex items-center gap-0.5 rounded-lg px-1.5 py-0.5">
-              <span className="text-[11px] font-bold leading-none" style={{ color: '#FF3B30' }}>{counts.negative}</span>
-              <span className="text-[8px]" style={{ color: 'var(--muted)' }}>−</span>
-            </div>
-            <div className="glass-pill flex items-center gap-0.5 rounded-lg px-1.5 py-0.5">
-              <span className="text-[11px] font-bold leading-none" style={{ color: '#8E8E93' }}>{counts.neutral}</span>
-              <span className="text-[8px]" style={{ color: 'var(--muted)' }}>○</span>
             </div>
 
             <div className="ml-auto">
