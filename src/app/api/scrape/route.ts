@@ -9,10 +9,17 @@ const supabase = createClient(
 );
 
 export async function GET(request: NextRequest) {
-  // Optional: Protect with a secret key
-  const authHeader = request.headers.get('authorization');
-  if (process.env.SCRAPER_API_KEY && authHeader !== `Bearer ${process.env.SCRAPER_API_KEY}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  // Protect with API key via header OR query parameter
+  const apiKey = process.env.SCRAPER_API_KEY;
+  if (apiKey) {
+    const authHeader = request.headers.get('authorization');
+    const queryKey = request.nextUrl.searchParams.get('key');
+    const valid =
+      authHeader === `Bearer ${apiKey}` ||
+      queryKey === apiKey;
+    if (!valid) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
   }
 
   const startTime = Date.now();
