@@ -4,6 +4,7 @@ import { discoverLinksFromHTMLSection } from './parser-section';
 import { fetchFromWPApi } from './parser-wp-api';
 import { extractCleanArticleText } from './parser-html';
 import { isBiharCentric, type GeoResult } from './geo-filter';
+import { isNoiseArticle } from './noise-filter';
 import { analyzeArticle } from './categorizer';
 
 // ── FAIL-SAFE: Advanced Absolute URL Resolver ──
@@ -159,6 +160,12 @@ export async function runUnifiedPipeline(sources: NewsSourceConfig[]): Promise<a
           continue;
         }
         console.log(`   [Geo] Score: ${geoResult.score} | ${geoResult.details.join(', ')}`);
+
+        // ── NOISE FILTER: Drop political rhetoric, crime, roundups ──
+        if (isNoiseArticle(titleGuess || '', bodyText.substring(0, 500))) {
+          console.log(`   [Drop] Noise (political/crime/roundup): ${url}`);
+          continue;
+        }
 
         // Universal language detection: checks for actual Hindi Devanagari characters
         const isHindi = /[\u0900-\u097F]/.test(bodyText || titleGuess || '');
