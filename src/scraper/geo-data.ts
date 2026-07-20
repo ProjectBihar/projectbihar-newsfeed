@@ -62,6 +62,197 @@ export const BIHAR_INFRA_KEYWORDS: string[] = [
   'indoor stadium gaya',
   'indoor stadium muzaffarpur',
   'indoor stadium bhagalpur',
+  'indira gandhi stadium',
+  'rajgir international cricket stadium',
+  "sandy's compound stadium",
+  'rajgir astro turf hockey stadium',
+  'kishanganj khagra stadium',
+  'मोइन-उल-हक स्टेडियम',
+  'पाटलिपुत्र स्पोर्ट्स कॉम्प्लेक्स',
+  'राजगीर अंतर्राष्ट्रीय खेल अकादमी',
+];
+
+// ═══════════════════════════════════════════════════════════════════
+// Bihar Major Cities (~70)
+// ═══════════════════════════════════════════════════════════════════
+
+export const BIHAR_CITIES: string[] = [
+  'patna', 'arra', 'buxar', 'sasaram', 'dehri-on-sone', 'dehri',
+  'bhabua', 'mohania', 'gaya', 'bodh gaya', 'rajgir', 'bihar sharif',
+  'hilsa', 'nawada', 'aurangabad', 'daudnagar', 'nabinagar', 'jehanabad',
+  'arwal', 'muzaffarpur', 'darbhanga', 'madhubani', 'samastipur',
+  'begusarai', 'barauni', 'khagaria', 'munger', 'jamalpur', 'bhagalpur',
+  'kahalgaon', 'sultanganj', 'purnia', 'purnea', 'katihar', 'kishanganj',
+  'araria', 'forbesganj', 'jogbani', 'saharsa', 'madhepura', 'supaul',
+  'birpur', 'triveniganj', 'sitamarhi', 'dumra', 'sheohar', 'hajipur',
+  'vaishali', 'mahua', 'mahnar', 'chapra', 'chhapra', 'sonpur',
+  'marhaura', 'siwan', 'maharajganj', 'gopalganj', 'hathua', 'mirganj',
+  'motihari', 'raxaul', 'sugauli', 'areraj', 'bettiah', 'bagaha',
+  'narkatiaganj', 'valmikinagar', 'bihta', 'danapur', 'bakhtiyarpur',
+  'barh', 'mokama', 'maner', 'phulwari sharif', 'masaurhi', 'fatuha',
+  // Hindi names
+  'पटना', 'आरा', 'बक्सर', 'सासाराम', 'देहरी-ओ-सोन', 'गया', 'बोधगया',
+  'राजगीर', 'बिहार शरीफ', 'मुजफ्फरपुर', 'दरभंगा', 'मधुबनी', 'भागलपुर',
+  'पूर्णिया', 'कटिहार', 'मुंगेर', 'बेगूसराय', 'समस्तीपुर', 'सीतामढ़ी',
+  'हाजीपुर', 'छपरा', 'सिवान', 'गोपालगंज', 'मोतिहारी', 'बेतिया',
+  'बरौनी', 'जमुई', 'लखीसराय', 'शेखपुरा', 'शिवहर', 'सहरसा', 'मधेपुरा',
+  'सुपौल', 'अररिया', 'अरवल', 'औरंगाबाद', 'नवादा', 'रोहतास', 'सारण',
+];
+
+// ═══════════════════════════════════════════════════════════════════
+// Bihar Railway Junctions (18)
+// ═══════════════════════════════════════════════════════════════════
+
+export const BIHAR_RAILWAYS: string[] = [
+  'patna junction', 'rajen dra nagar terminal', 'danapur junction',
+  'ara junction', 'buxar junction', 'sasaram junction', 'gaya junction',
+  'kiul junction', 'jamalpur junction', 'barauni junction',
+  'samastipur junction', 'darbhanga junction', 'muzaffarpur junction',
+  'hajipur junction', 'katihar junction', 'bhagalpur junction',
+  'raxaul junction', 'purnea junction',
+  // Hindi
+  'पटना जंक्शन', 'राजेंद्र नगर टर्मिनल', 'दानापुर जंक्शन',
+  'आरा जंक्शन', 'गया जंक्शन', 'बरौनी जंक्शन', 'समस्तीपुर जंक्शन',
+  'दरभंगा जंक्शन', 'मुजफ्फरपुर जंक्शन', 'भागलपुर जंक्शन',
+  'कटिहार जंक्शन', 'हाजीपुर जंक्शन',
+];
+
+// ═══════════════════════════════════════════════════════════════════
+// Bihar Universities (17+)
+// ═══════════════════════════════════════════════════════════════════
+
+export const BIHAR_UNIVERSITIES: string[] = [
+  'patna university', 'nalanda university', 'aryabhatta knowledge university',
+  'central university of south bihar', 'magadh university',
+  'babasaheb bhimrao ambedkar bihar university',
+  'tilka manjhi bhagalpur university', 'lalit narayan mithila university',
+  'veer kunwar singh university', 'purnea university', 'munger university',
+  'jai prakash university', 'chanakya national law university',
+  'iit patna', 'nit patna', 'iiit bhagalpur', 'aiims patna',
+  'mahatma gandhi central university', 'bihar agricultural university',
+  'dr. rajendra prasad central agricultural university',
+  // Hindi
+  'पटना विश्वविद्यालय', 'नालंदा विश्वविद्यालय', 'मगध विश्वविद्यालय',
+  'दक्षिण बिहार केन्द्रीय विश्वविद्यालय', 'महात्मा गांधी केन्द्रीय विश्वविद्यालय',
+  'बाबासाहेब भीमराव अम्बेडकर बिहार विश्वविद्यालय',
+  'ललित नारायण मिथिला विश्वविद्यालय', 'तिलका मांझी भागलपुर विश्वविद्यालय',
+];
+
+// ═══════════════════════════════════════════════════════════════════
+// Bihar Hospitals (12+)
+// ═══════════════════════════════════════════════════════════════════
+
+export const BIHAR_HOSPITALS: string[] = [
+  'pmch', 'patna medical college hospital', 'igims',
+  'indira gandhi institute of medical sciences', 'nmch',
+  'nalanda medical college hospital', 'dmch',
+  'darbhanga medical college hospital', 'skmch',
+  'aiims patna', 'jlnmch', 'anmmch',
+  'patna medical college', 'sri krishna medical college',
+  // Hindi
+  'पटना मेडिकल कॉलेज', 'आईजीआईएमएस', 'डीएमसीएच', 'एम्स पटना',
+  'श्री कृष्ण मेडिकल कॉलेज', 'जवाहरलाल नेहरू मेडिकल कॉलेज',
+];
+
+// ═══════════════════════════════════════════════════════════════════
+// Bihar Tourism & Heritage (20+)
+// ═══════════════════════════════════════════════════════════════════
+
+export const BIHAR_TOURISM: string[] = [
+  'mahabodhi temple', 'golghar', 'takht sri patna sahib', 'patna sahib',
+  'nalanda ruins', 'vishwa shanti stupa', 'vikramshila',
+  'kesaria stupa', 'barabar caves', 'pawapuri',
+  'valmiki tiger reserve', 'kakolat falls', 'sher shah suri tomb',
+  'jal mandir', 'kundalpur', 'mandar hill', 'sujata stupa',
+  'bihar museum', 'patna museum', 'jalan museum',
+  'chandradhari museum', 'kumhrar archaeological park',
+  'nalanda mahavihara', 'mahavir mandir', 'buddha smriti park',
+  'patna zoo', 'sanjay gandhi botanical garden',
+  // Hindi
+  'महाबोधि मंदिर', 'गोलघर', 'तख्त श्री पटना साहिब', 'नालंदा खंडहर',
+  'विश्व शांति स्तूप', 'केसरिया स्तूप', 'बराबर की गुफाएं',
+  'बिहार संग्रहालय', 'पटना संग्रहालय', 'शेर शाह सूरी का कब्र',
+  'जल मंदिर', 'पावापुरी',
+];
+
+// ═══════════════════════════════════════════════════════════════════
+// Bihar Government Agencies (8)
+// ═══════════════════════════════════════════════════════════════════
+
+export const BIHAR_AGENCIES: string[] = [
+  'biada', 'bsphcl', 'buidco', 'bsrdc', 'beltron',
+  'bpsc', 'bssc', 'btsc',
+  'बिहार लोक सेवा आयोग', 'बिहार कर्मचारी चयन आयोग',
+];
+
+// ═══════════════════════════════════════════════════════════════════
+// Bihar Industrial Areas (15+)
+// ═══════════════════════════════════════════════════════════════════
+
+export const BIHAR_INDUSTRIAL: string[] = [
+  'patliputra industrial area', 'fatuha industrial area',
+  'hajipur industrial area', 'barauni industrial area',
+  'bela industrial estate', 'dharampur industrial estate',
+  'muzaffarpur industrial estate', 'lakhisarai industrial estate',
+  'mega industrial park bihta', 'mega food park khagaria',
+  'motipur mega food park', 'patliputra it park', 'rajgir it city',
+  'bihta it sez',
+  // Power plants & refineries
+  'ntpc kahalgaon', 'ntpc barh', 'ntpc nabinagar',
+  'kanti thermal power station', 'barauni refinery',
+  'kalyanpur cement', 'shree cement aurangabad',
+  'harinagar sugar mill', 'narkatiaganj sugar mill',
+  'hurl barauni fertilizer', 'kahalgaon super thermal power station',
+  'barh super thermal power station',
+];
+
+// ═══════════════════════════════════════════════════════════════════
+// Bihar Agriculture (10+)
+// ═══════════════════════════════════════════════════════════════════
+
+export const BIHAR_AGRICULTURE: string[] = [
+  'icar research complex', 'national research centre on litchi',
+  'national research centre for makhana', 'kvk barh',
+  'sudha dairy', 'bihar veterinary college',
+  'college of fisheries kishanganj', 'bihar agricultural university',
+  'dr. rajendra prasad central agricultural university',
+  'sanjay gandhi institute of dairy technology',
+];
+
+// ═══════════════════════════════════════════════════════════════════
+// Bihar Environment — Parks, Sanctuaries, Rivers, Dams (30+)
+// ═══════════════════════════════════════════════════════════════════
+
+export const BIHAR_ENVIRONMENT: string[] = [
+  'valmiki national park', 'valmiki tiger reserve',
+  'kaimur wildlife sanctuary', 'kaimur tiger reserve',
+  'bhimbandh wildlife sanctuary', 'gautam buddha wildlife sanctuary',
+  'pant wildlife sanctuary', 'nagi bird sanctuary',
+  'nakti bird sanctuary', 'kusheshwar asthan bird sanctuary',
+  'gogabeel bird sanctuary', 'kabartal wetland', 'kanwar jheel',
+  'gogabeel lake', 'udaipur jheel', 'ghora katora lake',
+  'muchalinda lake', 'kosi barrage', 'indrapuri barrage',
+  'valmikinagar barrage', 'durgawati dam', 'chandan dam',
+  'kosi hydel power station', 'son canal hydroelectric project',
+  'kajra solar power plant', 'pirpainti solar power plant',
+  // Rivers — use full names to avoid false matches
+  'river ganga', 'ganga river', 'kosi river', 'river kosi',
+  'son river', 'gandak river', 'bagmati river',
+  'burhi gandak', 'phalgu river', 'punpun river', 'kamla river',
+  // Hindi
+  'वाल्मीकि राष्ट्रीय उद्यान', 'वाल्मीकि टाइगर रिजर्व',
+  'गंगा नदी', 'कोसी नदी', 'सोन नदी', 'गंडक नदी', 'बागमती नदी',
+  'कैमूर वन्यजीव अभयारण्य', 'केसरिया स्तूप',
+];
+
+// ═══════════════════════════════════════════════════════════════════
+// Bihar Utilities (10+)
+// ═══════════════════════════════════════════════════════════════════
+
+export const BIHAR_UTILITIES: string[] = [
+  'bsptcl', 'pgcil bihar', 'har ghar gangajal',
+  'kosi hydel power station', 'son canal hydroelectric project',
+  'kajra solar power plant', 'pirpainti solar power plant',
 ];
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1170,12 +1361,22 @@ export const NON_BIHAR_DISTRICT_HINDI: string[] = ALL_INDIA_STATES
 export const NON_BIHAR_STATE_NAMES: string[] = ALL_STATES_AND_UTS
   .filter(s => s !== 'bihar' && s !== 'बिहार');
 
-// Combined Bihar terms (districts + keywords + infra)
+// Combined Bihar terms (all categories)
 export const ALL_BIHAR_TERMS: string[] = [
   ...BIHAR_DISTRICT_NAMES,
   ...BIHAR_DISTRICT_HINDI,
   ...BIHAR_KEYWORDS,
   ...BIHAR_INFRA_KEYWORDS,
+  ...BIHAR_CITIES,
+  ...BIHAR_RAILWAYS,
+  ...BIHAR_UNIVERSITIES,
+  ...BIHAR_HOSPITALS,
+  ...BIHAR_TOURISM,
+  ...BIHAR_AGENCIES,
+  ...BIHAR_INDUSTRIAL,
+  ...BIHAR_AGRICULTURE,
+  ...BIHAR_ENVIRONMENT,
+  ...BIHAR_UTILITIES,
 ];
 
 // Combined non-Bihar terms (districts + states)

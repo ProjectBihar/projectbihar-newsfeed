@@ -14,6 +14,16 @@ import {
   BIHAR_DISTRICT_HINDI,
   BIHAR_KEYWORDS,
   BIHAR_INFRA_KEYWORDS,
+  BIHAR_CITIES,
+  BIHAR_RAILWAYS,
+  BIHAR_UNIVERSITIES,
+  BIHAR_HOSPITALS,
+  BIHAR_TOURISM,
+  BIHAR_AGENCIES,
+  BIHAR_INDUSTRIAL,
+  BIHAR_AGRICULTURE,
+  BIHAR_ENVIRONMENT,
+  BIHAR_UTILITIES,
   ALL_NON_BIHAR_GEO_TERMS,
   NON_BIHAR_DISTRICT_NAMES,
   NON_BIHAR_DISTRICT_HINDI,
@@ -225,6 +235,39 @@ export function isBiharCentric(title: string, body: string): GeoResult {
       hasBiharSignal = true;
       details.push(`infra "${infra}" (+2)`);
       break; // one infra match is enough
+    }
+  }
+
+  // 1g2. Bihar cities (major towns in Bihar) — use token matching
+  for (const city of BIHAR_CITIES) {
+    if (matchesToken(combined, city)) {
+      score += 2;
+      hasBiharSignal = true;
+      details.push(`city "${city}" (+2)`);
+      break; // one city match is enough
+    }
+  }
+
+  // 1g3. Bihar railways, universities, hospitals, tourism, agencies — use token matching
+  const entityArrays = [
+    { arr: BIHAR_RAILWAYS, name: 'railway' },
+    { arr: BIHAR_UNIVERSITIES, name: 'university' },
+    { arr: BIHAR_HOSPITALS, name: 'hospital' },
+    { arr: BIHAR_TOURISM, name: 'tourism' },
+    { arr: BIHAR_AGENCIES, name: 'agency' },
+    { arr: BIHAR_INDUSTRIAL, name: 'industrial' },
+    { arr: BIHAR_AGRICULTURE, name: 'agriculture' },
+    { arr: BIHAR_ENVIRONMENT, name: 'environment' },
+    { arr: BIHAR_UTILITIES, name: 'utility' },
+  ];
+  for (const { arr, name } of entityArrays) {
+    for (const entity of arr) {
+      if (matchesToken(combined, entity)) {
+        score += 2;
+        hasBiharSignal = true;
+        details.push(`${name} "${entity}" (+2)`);
+        break; // one match per category is enough
+      }
     }
   }
 
