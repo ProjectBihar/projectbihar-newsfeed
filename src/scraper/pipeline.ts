@@ -3,7 +3,7 @@ import { fetchArticleUrlsFromRSS } from './parser-rss';
 import { discoverLinksFromHTMLSection } from './parser-section';
 import { fetchFromWPApi } from './parser-wp-api';
 import { extractCleanArticleText } from './parser-html';
-import { isBiharCentric } from './geo-filter';
+import { isBiharCentric, type GeoResult } from './geo-filter';
 import { analyzeArticle } from './categorizer';
 
 // ── FAIL-SAFE: Advanced Absolute URL Resolver ──
@@ -153,10 +153,12 @@ export async function runUnifiedPipeline(sources: NewsSourceConfig[]): Promise<a
           console.log(`   [Drop] Content too short or blocked: ${url}`);
           continue;
         }
-        if (!isBiharCentric(titleGuess || '', bodyText)) {
+        const geoResult = isBiharCentric(titleGuess || '', bodyText);
+        if (!geoResult.pass) {
           console.log(`   [Drop] Failed Geo-Filter (Not Bihar): ${url}`);
           continue;
         }
+        console.log(`   [Geo] Score: ${geoResult.score} | ${geoResult.details.join(', ')}`);
 
         // Universal language detection: checks for actual Hindi Devanagari characters
         const isHindi = /[\u0900-\u097F]/.test(bodyText || titleGuess || '');
