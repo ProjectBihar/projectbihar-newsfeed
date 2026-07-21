@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "github-actions-trigger",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-21",
+  "observability": {
+    "enabled": true
+  },
+  "triggers": {
+    "crons": [
+      "*/15 * * * *"
+    ]
+  },
+  "vars": {
+    "GH_OWNER": "ProjectBihar",
+    "GH_REPO": "projectbihar-newsfeed",
+    "GH_WORKFLOW_FILE": "scrape.yml",
+    "GH_REF": "master"
+  },
+  "compatibility_flags": [
+    "nodejs_compat"
+  ]
+}
